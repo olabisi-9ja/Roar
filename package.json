@@ -1,0 +1,19 @@
+{
+  "name": "inside-the-game",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:migrate": "npm run migrate -w @inside/database",
+    "dev:api": "npm run dev -w @inside/api",
+    "dev:admin": "npm run dev -w @inside/admin",
+    "dev:web": "npm run dev -w @inside/web",
+    "dev:mobile": "npm run start -w @inside/mobile",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:local": "npm run db:local -w @inside/database",
+    "db:deploy": "npm run migrate:deploy -w @inside/database"
+  }
+}

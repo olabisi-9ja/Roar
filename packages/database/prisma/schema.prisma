@@ -1,0 +1,252 @@
+// Data model from docs/SPEC.md section 2.6. Table and column names are snake_case in
+// Postgres (@@map / @map); Prisma fields are camelCase.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  FAN
+  MODERATOR
+  SECURITY
+  ADMIN
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum MediaStatus {
+  PROCESSING
+  APPROVED
+  FLAGGED
+  REJECTED
+  REMOVED
+}
+
+enum EventType {
+  GOAL
+  CELEBRATION
+  PLAYER
+  CROWD
+  FOUL
+  SECURITY
+  OTHER
+}
+
+enum Severity {
+  NORMAL
+  MEDIUM
+  CRITICAL
+}
+
+enum MomentStatus {
+  PROCESSING
+  PUBLISHED
+  REMOVED
+}
+
+enum IncidentType {
+  MEDICAL
+  SECURITY
+  FIRE
+  OVERCROWDING
+  OTHER
+}
+
+enum IncidentStatus {
+  OPEN
+  ACKNOWLEDGED
+  ASSIGNED
+  RESOLVED
+  FALSE_POSITIVE
+}
+
+model User {
+  id        String     @id @default(cuid())
+  name      String
+  email     String     @unique
+  avatarUrl String?    @map("avatar_url")
+  role      Role       @default(FAN)
+  createdAt DateTime   @default(now()) @map("created_at")
+  media     Media[]
+  reactions Reaction[]
+  incidents Incident[]
+
+  @@map("users")
+}
+
+model Stadium {
+  id        String  @id @default(cuid())
+  name      String
+  latitude  Float
+  longitude Float
+  capacity  Int
+  matches   Match[]
+
+  @@map("stadiums")
+}
+
+model Match {
+  id        String      @id @default(cuid())
+  homeTeam  String      @map("home_team")
+  awayTeam  String      @map("away_team")
+  homeScore Int         @default(0) @map("home_score")
+  awayScore Int         @default(0) @map("away_score")
+  status    MatchStatus @default(SCHEDULED)
+  startTime DateTime    @map("start_time")
+  stadiumId String?     @map("stadium_id")
+  stadium   Stadium?    @relation(fields: [stadiumId], references: [id])
+  media     Media[]
+  moments   Moment[]
+  incidents Incident[]
+
+  @@map("matches")
+}
+
+// Team is a plain string until a teams table is specified (the spec has none).
+model Player {
+  id        String  @id @default(cuid())
+  teamId    String  @map("team_id")
+  name      String
+  number    Int
+  position  String
+  avatarUrl String? @map("avatar_url")
+
+  @@map("players")
+}
+
+model Media {
+  id             String       @id @default(cuid())
+  userId         String       @map("user_id")
+  matchId        String       @map("match_id")
+  blobUrl        String       @map("blob_url")
+  thumbnailUrl   String?      @map("thumbnail_url")
+  type           MediaType
+  duration       Int?
+  capturedAt     DateTime     @map("captured_at")
+  uploadedAt     DateTime     @default(now()) @map("uploaded_at")
+  section        String?
+  latitude       Float?
+  longitude      Float?
+  status         MediaStatus  @default(PROCESSING)
+  // Who can see it: community, me (only the uploader) or security.
+  audience       String       @default("community")
+  user           User         @relation(fields: [userId], references: [id])
+  match          Match        @relation(fields: [matchId], references: [id])
+  analysis       AiAnalysis?
+  momentLinks    MomentMedia[]
+  incidentLinks  IncidentMedia[]
+  bestForMoments Moment[]     @relation("BestMedia")
+
+  @@map("media")
+}
+
+model AiAnalysis {
+  id          String    @id @default(cuid())
+  mediaId     String    @unique @map("media_id")
+  eventType   EventType @map("event_type")
+  confidence  Float
+  description String
+  playerIds   String[]  @map("player_ids")
+  severity    Severity  @default(NORMAL)
+  labels      String[]
+  model       String
+  processedAt DateTime  @default(now()) @map("processed_at")
+  media       Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@map("ai_analysis")
+}
+
+model Moment {
+  id          String        @id @default(cuid())
+  matchId     String        @map("match_id")
+  eventType   EventType     @map("event_type")
+  timestamp   DateTime
+  title       String
+  description String
+  confidence  Float
+  playerIds   String[]      @map("player_ids")
+  bestMediaId String?       @map("best_media_id")
+  status      MomentStatus  @default(PROCESSING)
+  // Match minute, so curated moments sort alongside official events on the For You feed.
+  minute      Int?
+  // Pinned to the top of the For You feed.
+  promoted    Boolean       @default(false)
+  // Who made it: "editor" (admin curation) or "ai" (Highlight Curator agent).
+  source      String        @default("editor")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  match       Match         @relation(fields: [matchId], references: [id])
+  bestMedia   Media?        @relation("BestMedia", fields: [bestMediaId], references: [id])
+  media       MomentMedia[]
+  reactions   Reaction[]
+
+  @@map("moments")
+}
+
+model MomentMedia {
+  momentId   String  @map("moment_id")
+  mediaId    String  @map("media_id")
+  angleLabel String? @map("angle_label")
+  rank       Int
+  moment     Moment  @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  media      Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([momentId, mediaId])
+  @@map("moment_media")
+}
+
+model Incident {
+  id           String          @id @default(cuid())
+  matchId      String          @map("match_id")
+  reportedById String          @map("reported_by")
+  type         IncidentType
+  severity     Severity        @default(NORMAL)
+  status       IncidentStatus  @default(OPEN)
+  section      String?
+  latitude     Float?
+  longitude    Float?
+  description  String?
+  confidence   Float?
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+  match        Match           @relation(fields: [matchId], references: [id])
+  reportedBy   User            @relation(fields: [reportedById], references: [id])
+  media        IncidentMedia[]
+
+  @@map("incidents")
+}
+
+model IncidentMedia {
+  incidentId String   @map("incident_id")
+  mediaId    String   @map("media_id")
+  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([incidentId, mediaId])
+  @@map("incident_media")
+}
+
+model Reaction {
+  id       String  @id @default(cuid())
+  momentId String  @map("moment_id")
+  userId   String  @map("user_id")
+  type     String
+  moment   Moment  @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([momentId, userId])
+  @@map("reactions")
+}

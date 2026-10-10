@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3A0648">
+<title>Roar · Offline</title>
+<style>
+  :root { --ink: #3A0648; --paper: #FFFFFF; --yellow: #FEB703; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100dvh; display: grid; place-items: center; background: var(--paper); color: var(--ink); font-family: system-ui, sans-serif; text-align: center; padding: 24px; }
+  img { width: 88px; }
+  h1 { font: 800 40px/1 Impact, 'Arial Narrow', sans-serif; text-transform: uppercase; margin: 16px 0 8px; }
+  p { margin: 0 auto 24px; max-width: 300px; line-height: 1.45; color: rgba(58, 6, 72, 0.72); }
+  button { min-height: 52px; padding: 0 28px; border: 0; border-radius: 999px; background: var(--ink); color: var(--paper); font: 700 18px system-ui, sans-serif; cursor: pointer; }
+  .sos { display: block; margin-top: 20px; color: var(--ink); font-weight: 700; }
+</style>
+</head>
+<body>
+  <main>
+    <img src="/mark.svg" alt="">
+    <h1>You're offline</h1>
+    <p>The stadium network dropped. Clips you record are saved and upload when you're back.</p>
+    <button type="button" onclick="location.reload()">Try again</button>
+    <span class="sos">In an emergency, find the nearest steward or call 999.</span>
+  </main>
+</body>
+</html>

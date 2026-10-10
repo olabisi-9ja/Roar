@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inside the Game: app design</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --purple: #3A0648;
+  --white: #FFFFFF;
+  --orange: #F15326;
+  --yellow: #FEB703;
+  --green: #82BA03;
+  --blue: #00A6ED;
+  --text-2: rgba(255, 255, 255, 0.7);
+  --line: rgba(255, 255, 255, 0.16);
+  --surface: rgba(255, 255, 255, 0.08);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--white); color: var(--purple); font-family: Barlow, sans-serif; }
+.board { position: relative; width: 2430px; height: 2144px; }
+.cond { font-family: 'Barlow Condensed', sans-serif; }
+.abs { position: absolute; }
+.note { position: absolute; left: 80px; top: 60px; }
+.note h1 { margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 56px; line-height: 1; text-transform: uppercase; letter-spacing: 0.02em; }
+.note p { margin: 8px 0 0; font-size: 18px; }
+.frame-label { position: absolute; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+.frame { position: absolute; background: var(--purple); color: var(--white); overflow: hidden; border-radius: 32px; }
+.frame.desk { border-radius: 12px; }
+.frame a { color: inherit; text-decoration: none; }
+.frame button { font: inherit; color: inherit; cursor: pointer; }
+.chip { display: inline-block; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; background: var(--yellow); color: var(--purple); }
+.chip.orange { background: var(--orange); }
+.chip.green { background: var(--green); }
+.chip.blue { background: var(--blue); }
+.btn { min-height: 48px; padding: 0 16px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.5); background: transparent; color: var(--white); font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 17px; letter-spacing: 0.06em; text-transform: uppercase; }
+.btn.primary { background: var(--yellow); border-color: var(--yellow); color: var(--purple); }
+.btn.danger { background: var(--orange); border-color: var(--orange); color: var(--purple); }
+.btn.small { min-height: 40px; font-size: 15px; padding: 0 12px; }
+.placeholder { position: absolute; left: 0; right: 0; border: 1px dashed rgba(255, 255, 255, 0.3); background: var(--surface); display: flex; align-items: center; justify-content: center; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.12em; color: var(--text-2); }
+.muted { color: var(--text-2); }
+.label { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+.back { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
+.live { display: inline-flex; align-items: center; gap: 8px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 14px; letter-spacing: 0.1em; color: var(--green); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+.rail-btn { width: 48px; height: 48px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, 0.5); background: transparent; display: grid; place-items: center; padding: 0; }
+.tabbar { position: absolute; left: 0; right: 0; bottom: 0; height: 84px; padding-top: 14px; display: flex; justify-content: space-around; background: var(--purple); border-top: 1px solid var(--line); }
+.tab { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.08em; color: var(--text-2); padding: 6px 4px; min-width: 56px; text-align: center; }
+.tab.on { color: var(--white); font-weight: 800; text-decoration: underline; text-decoration-color: var(--yellow); text-decoration-thickness: 3px; text-underline-offset: 8px; }
+.tab.alert { color: var(--orange); }
+.pill { padding: 10px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.4); background: transparent; color: var(--white); font-size: 14px; font-weight: 600; text-align: left; }
+.pill[aria-pressed="true"] { background: var(--yellow); border-color: var(--yellow); color: var(--purple); }
+.row { display: flex; align-items: center; gap: 14px; padding: 16px 0; border-top: 1px solid var(--line); }
+.bar { width: 4px; height: 32px; border-radius: 2px; flex: none; }
+.seg { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 999px; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 16px; letter-spacing: 0.05em; text-transform: uppercase; cursor: pointer; }
+.seg input, .opt input { accent-color: var(--purple); margin: 0; }
+.seg:has(input:checked) { background: var(--yellow); border-color: var(--yellow); color: var(--purple); }
+.seg.danger:has(input:checked) { background: var(--orange); border-color: var(--orange); }
+.opt { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 17px; cursor: pointer; }
+.opt input { accent-color: var(--green); width: 18px; height: 18px; }
+.corner { position: absolute; width: 24px; height: 24px; border-color: var(--white); border-style: solid; border-width: 0; }
+.corner.tl { top: 12px; left: 12px; border-top-width: 3px; border-left-width: 3px; }
+.corner.tr { top: 12px; right: 12px; border-top-width: 3px; border-right-width: 3px; }
+.corner.bl { bottom: 12px; left: 12px; border-bottom-width: 3px; border-left-width: 3px; }
+.corner.br { bottom: 12px; right: 12px; border-bottom-width: 3px; border-right-width: 3px; }
+.count { display: inline-flex; align-items: center; gap: 8px; font-size: 16px; }
+.count i { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
+.count b { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; }
+.incident { padding: 20px 0 20px 20px; border-left: 4px solid; }
+.incident + .incident { border-top: 1px solid var(--line); }
+.feed-row { display: grid; grid-template-columns: 72px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 16px; }
+.feed-row time { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 18px; }
+.map { position: relative; height: 340px; margin-top: 16px; border: 2px solid rgba(255, 255, 255, 0.35); border-radius: 50%; }
+.pitch { position: absolute; left: 50%; top: 50%; width: 46%; height: 44%; transform: translate(-50%, -50%); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; }
+.sector { position: absolute; transform: translate(-50%, -50%); font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 18px; color: var(--text-2); }
+.dot { position: absolute; width: 18px; height: 18px; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid var(--purple); box-shadow: 0 0 0 2px var(--white); }
+.swatch { height: 96px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.4); }
+.swatch-name { margin-top: 12px; font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-size: 22px; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="board">
+
+  <div class="note">
+    <h1>Inside the Game: app design</h1>
+    <p>Fan app (390 × 844 frames) and security dashboard · logo colours only · purple, orange, yellow, green, blue, white</p>
+  </div>
+
+  <!-- Frame labels -->
+  <div class="frame-label" style="left:80px;top:210px">Live feed</div>
+  <div class="frame-label" style="left:550px;top:210px">Moment</div>
+  <div class="frame-label" style="left:1020px;top:210px">Player</div>
+  <div class="frame-label" style="left:1490px;top:210px">Capture</div>
+  <div class="frame-label" style="left:1960px;top:210px">SOS</div>
+  <div class="frame-label" style="left:80px;top:1174px">Security dashboard (desktop)</div>
+  <div class="frame-label" style="left:1440px;top:1174px">Logo palette</div>
+
+  <!-- 1. Live feed -->
+  <section class="frame" id="frame-live" style="left:80px;top:240px;width:390px;height:844px" aria-label="Live feed">
+    <div class="placeholder" style="top:0;bottom:0">EDGE-TO-EDGE VIDEO</div>
+
+    <div class="abs" style="top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:28px 20px 0">
+      <span class="live">LIVE</span>
+      <span class="cond" style="font-weight:700;font-size:17px">Arsenal 1 – 0 Chelsea</span>
+    </div>
+
+    <div class="abs" style="right:14px;bottom:200px;display:flex;flex-direction:column;gap:20px;align-items:center">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <button class="rail-btn" type="button" aria-label="React to this Moment">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7.5-4.6-9.6-9.2A5.4 5.4 0 0 1 12 6.3a5.4 5.4 0 0 1 9.6 5.5C19.5 16.4 12 21 12 21z"/></svg>
+        </button>
+        <span style="font-size:12px;font-weight:600">2.4k</span>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+        <button class="rail-btn" type="button" aria-label="Share this Moment">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 8l5-5 5 5M5 14v5h14v-5"/></svg>
+        </button>
+        <span style="font-size:12px;font-weight:600">Share</span>
+      </div>
+    </div>
+
+    <a class="abs" href="#frame-moment" style="left:20px;right:84px;bottom:112px">
+      <span class="chip">Goal · 72:14</span>
+      <div class="cond" style="margin-top:12px;font-weight:800;font-size:46px;line-height:0.95;text-transform:uppercase">GOAL! #9 scores</div>
+      <div style="margin-top:10px;font-size:15px;color:rgba(255,255,255,0.85)">18 angles · 7 photos · AI confidence 97%</div>
+      <div style="margin-top:6px;font-size:13px;color:var(--text-2)">Tap for Moment details · swipe up for next</div>
+    </a>
+
+    <nav class="tabbar" aria-label="Main">
+      <a class="tab" href="#">HOME</a>
+      <a class="tab on" href="#frame-live">LIVE</a>
+      <a class="tab" href="#frame-capture">CAPTURE</a>
+      <a class="tab alert" href="#frame-sos">ALERT</a>
+      <a class="tab" href="#frame-player">PROFILE</a>
+    </nav>
+  </section>
+
+  <!-- 2. Moment -->
+  <section class="frame" id="frame-moment" style="left:550px;top:240px;width:390px;height:844px" aria-label="Moment">
+    <div class="placeholder" style="top:0;height:460px">VIDEO · ANGLE 1</div>
+
+    <div class="abs" style="top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:24px 20px">
+      <a class="back" href="#frame-live">← Live</a>
+      <span><span class="chip">Goal</span> <span class="cond" style="font-weight:700;font-size:16px;margin-left:6px">72:14</span></span>
+    </div>
+
+    <div class="abs" style="top:476px;left:20px;right:20px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="pill" type="button" aria-pressed="true">1 · North stand</button>
+      <button class="pill" type="button" aria-pressed="false">2 · East stand</button>
+      <button class="pill" type="button" aria-pressed="false">3 · Behind goal</button>
+      <button class="pill" type="button" aria-pressed="false">4 · Photo</button>
+    </div>
+
+    <div class="abs" style="top:584px;left:20px;right:20px">
+      <span class="chip blue">AI summary</span>
+      <p style="margin:10px 0 0;font-size:20px;line-height:1.3">#9 finishes inside the box after a through ball from #7.</p>
+    </div>
+
+    <div class="abs" style="top:688px;left:20px;right:20px;display:flex;gap:32px">
+      <div>
+        <div class="cond" style="font-weight:800;font-size:40px;line-height:1">18</div>
+        <div class="muted" style="font-size:14px">audience captures</div>
+      </div>
+      <div>
+        <div class="cond" style="font-weight:800;font-size:40px;line-height:1">7</div>
+        <div class="muted" style="font-size:14px">usable angles</div>
+      </div>
+      <div>
+        <div class="cond" style="font-weight:800;font-size:40px;line-height:1;color:var(--green)">97%</div>
+        <div class="muted" style="font-size:14px">AI confidence</div>
+      </div>
+    </div>
+
+    <div class="abs" style="left:0;right:0;bottom:0;height:88px;padding:16px 20px;display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);background:var(--purple)">
+      <button class="btn primary" type="button" style="flex:1">React</button>
+      <button class="btn" type="button" style="flex:1">Share</button>
+      <button class="btn" type="button" style="border-color:transparent;text-decoration:underline">Report</button>
+    </div>
+  </section>
+
+  <!-- 3. Player -->
+  <section class="frame" id="frame-player" style="left:1020px;top:240px;width:390px;height:844px" aria-label="Player">
+    <a class="back abs" href="#frame-live" style="top:28px;left:20px">← Live</a>
+
+    <div class="cond abs" style="top:70px;left:20px;font-weight:800;font-size:140px;line-height:0.9;color:var(--yellow)">#9</div>
+
+    <div class="abs" style="top:232px;left:20px;right:20px">
+      <div class="label">Player</div>
+      <div class="cond" style="margin-top:4px;font-weight:800;font-size:34px;text-transform:uppercase">Forward</div>
+      <span style="display:inline-block;margin-top:10px;border:1px solid rgba(255,255,255,0.5);padding:4px 10px;border-radius:4px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:0.08em;text-transform:uppercase">Arsenal</span>
+    </div>
+
+    <div class="abs" style="top:360px;left:20px;right:20px">
+      <div class="label">Match moments</div>
+      <div class="row" style="margin-top:8px">
+        <span class="bar" style="background:var(--yellow)"></span>
+        <span class="cond" style="font-weight:700;font-size:24px;width:72px">72:14</span>
+        <span style="flex:1;font-size:17px">Goal</span>
+        <span class="muted" style="font-size:14px">18 angles</span>
+      </div>
+      <div class="row">
+        <span class="bar" style="background:var(--green)"></span>
+        <span class="cond" style="font-weight:700;font-size:24px;width:72px">72:20</span>
+        <span style="flex:1;font-size:17px">Celebration</span>
+        <span class="muted" style="font-size:14px">23 photos</span>
+      </div>
+      <div class="row">
+        <span class="bar" style="background:var(--blue)"></span>
+        <span class="cond" style="font-weight:700;font-size:24px;width:72px">58:32</span>
+        <span style="flex:1;font-size:17px">Shot</span>
+        <span class="muted" style="font-size:14px">2 videos</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Capture -->
+  <section class="frame" id="frame-capture" style="left:1490px;top:240px;width:390px;height:844px" aria-label="Capture">
+    <div class="abs" style="top:28px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center">
+      <a class="back" href="#frame-live">Cancel</a>
+      <span class="cond" style="font-weight:800;font-size:20px;letter-spacing:0.08em">CAPTURE</span>
+      <span style="width:52px"></span>
+    </div>
+
+    <div class="abs" style="top:84px;left:20px;right:20px;height:400px;border:1px dashed rgba(255,255,255,0.4);background:var(--surface)">
+      <span class="corner tl"></span>
+      <span class="corner tr"></span>
+      <span class="corner bl"></span>
+      <span class="corner br"></span>
+      <div class="placeholder" style="top:0;bottom:0;border:0;background:transparent">CAMERA PREVIEW</div>
+      <button type="button" aria-label="Record" class="abs" style="left:50%;bottom:20px;transform:translateX(-50%);width:72px;height:72px;border-radius:50%;border:3px solid var(--white);background:transparent;display:grid;place-items:center;padding:0">
+        <span style="width:52px;height:52px;border-radius:50%;background:var(--orange)"></span>
+      </button>
+    </div>
+
+    <div class="abs" style="top:508px;left:20px;display:flex;gap:8px">
+      <label class="seg"><input type="radio" name="mode" value="photo"> Photo</label>
+      <label class="seg"><input type="radio" name="mode" value="video" checked> Video</label>
+    </div>
+
+    <div class="abs" style="top:580px;left:20px;right:20px">
+      <div class="label">Share with</div>
+      <label class="opt"><input type="radio" name="share" checked> Match community</label>
+      <label class="opt"><input type="radio" name="share"> Only me</label>
+      <label class="opt"><input type="radio" name="share"> Security only</label>
+    </div>
+
+    <button class="btn primary abs" type="button" style="left:20px;right:20px;bottom:24px;min-height:56px">Capture moment</button>
+  </section>
+
+  <!-- 5. SOS -->
+  <section class="frame" id="frame-sos" style="left:1960px;top:240px;width:390px;height:844px" aria-label="SOS">
+    <a class="back abs" href="#frame-live" style="top:28px;left:20px">← Back</a>
+
+    <h2 class="cond abs" style="top:80px;left:20px;right:20px;margin:0;font-weight:800;font-size:52px;line-height:0.95;text-transform:uppercase">Are you in danger?</h2>
+    <p class="abs muted" style="top:200px;left:20px;right:20px;margin:0;font-size:16px">Security will see your location as Section B3.</p>
+
+    <div class="abs" style="top:256px;left:20px;right:20px">
+      <div class="label">What is happening</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+        <label class="seg danger"><input type="radio" name="sos-type" checked> Medical</label>
+        <label class="seg danger"><input type="radio" name="sos-type"> Security</label>
+        <label class="seg danger"><input type="radio" name="sos-type"> Fire</label>
+        <label class="seg danger"><input type="radio" name="sos-type"> Overcrowding</label>
+        <label class="seg danger"><input type="radio" name="sos-type"> Other</label>
+      </div>
+    </div>
+
+    <button class="btn danger abs" type="button" style="left:20px;right:20px;bottom:150px;height:140px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+      <span class="cond" style="display:block;font-size:40px;font-weight:800">HOLD TO ALERT</span>
+      <span style="display:block;margin-top:6px;font-size:15px;font-weight:600;text-transform:none;letter-spacing:0">Press and hold for 2 seconds</span>
+    </button>
+
+    <button class="btn abs" type="button" style="left:20px;right:20px;bottom:88px">Add photo or video (optional)</button>
+
+    <a class="back abs" href="#frame-live" style="left:0;right:0;bottom:36px;text-align:center">Cancel</a>
+  </section>
+
+  <!-- 6. Security dashboard (desktop) -->
+  <section class="frame desk" id="frame-security" style="left:80px;top:1204px;width:1280px;height:860px" aria-label="Security dashboard">
+    <div style="padding:28px 32px;height:100%;display:flex;flex-direction:column">
+      <header style="display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:20px">
+          <h2 class="cond" style="margin:0;font-weight:800;font-size:30px;letter-spacing:0.02em">STADIUM LIVE INTELLIGENCE</h2>
+          <span class="live">LIVE MATCH</span>
+        </div>
+        <div style="display:flex;gap:24px">
+          <span class="count"><i style="background:var(--orange)"></i><b>2</b> Critical</span>
+          <span class="count"><i style="background:var(--yellow)"></i><b>4</b> Medium</span>
+          <span class="count"><i style="background:var(--green)"></i><b>18</b> Normal</span>
+        </div>
+      </header>
+
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:48px;margin-top:32px;flex:1;min-height:0">
+        <div>
+          <div class="label">Incidents</div>
+
+          <article class="incident" style="border-color:var(--orange);margin-top:12px">
+            <span class="chip orange">Critical</span>
+            <h3 class="cond" style="margin:10px 0 0;font-weight:800;font-size:30px;text-transform:uppercase">Medical incident · Section C</h3>
+            <div class="muted" style="margin-top:6px;font-size:15px">Confidence 91% · 3 reports · 2 videos</div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn danger small" type="button">Dispatch</button>
+              <button class="btn small" type="button">Acknowledge</button>
+              <button class="btn small" type="button">Resolve</button>
+            </div>
+          </article>
+
+          <article class="incident" style="border-color:var(--yellow)">
+            <span class="chip">Medium</span>
+            <h3 class="cond" style="margin:10px 0 0;font-weight:800;font-size:30px;text-transform:uppercase">Overcrowding · Section F</h3>
+            <div class="muted" style="margin-top:6px;font-size:15px">Confidence 74% · 4 reports</div>
+            <div style="display:flex;gap:10px;margin-top:16px">
+              <button class="btn primary small" type="button">Acknowledge</button>
+              <button class="btn small" type="button">Resolve</button>
+            </div>
+          </article>
+        </div>
+
+        <div>
+          <div class="label">Stadium map</div>
+          <div class="map" role="img" aria-label="Stadium map with incidents in Section C and Section F">
+            <div class="pitch"></div>
+            <span class="sector" style="left:50%;top:-6%">A</span>
+            <span class="sector" style="left:84%;top:12%">B</span>
+            <span class="sector" style="left:104%;top:50%">C</span>
+            <span class="sector" style="left:84%;top:88%">D</span>
+            <span class="sector" style="left:50%;top:106%">E</span>
+            <span class="sector" style="left:16%;top:88%">F</span>
+            <span class="sector" style="left:-4%;top:50%">G</span>
+            <span class="sector" style="left:16%;top:12%">H</span>
+            <span class="dot" style="left:96%;top:50%;background:var(--orange)"></span>
+            <span class="dot" style="left:22%;top:84%;background:var(--yellow)"></span>
+          </div>
+
+          <div class="label" style="margin-top:28px">Match feed</div>
+          <div class="feed-row" style="margin-top:8px"><time>72:14</time><span>Goal · #9 scores</span></div>
+          <div class="feed-row"><time>72:18</time><span>Crowd celebration · 23 photos, 11 videos</span></div>
+          <div class="feed-row"><time>73:04</time><span>Safety alert · Section B3 · 3 reports</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. Logo palette -->
+  <section class="frame" id="frame-palette" style="left:1440px;top:1204px;width:880px;height:600px" aria-label="Logo palette">
+    <div style="padding:40px">
+      <h2 class="cond" style="margin:0;font-weight:800;font-size:40px;text-transform:uppercase">Logo palette</h2>
+      <p class="muted" style="margin:8px 0 0;font-size:16px">Sampled from the logo in the zip. Only these six colours are used.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;margin-top:28px">
+        <div>
+          <div class="swatch" style="background:#3A0648;border-color:rgba(255,255,255,0.5)"></div>
+          <div class="swatch-name">Purple</div>
+          <div style="font-size:15px">#3A0648</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">Background, surfaces, dark stadium</div>
+        </div>
+        <div>
+          <div class="swatch" style="background:#FFFFFF"></div>
+          <div class="swatch-name">White</div>
+          <div style="font-size:15px">#FFFFFF</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">Primary text. Secondary text is white at 70%</div>
+        </div>
+        <div>
+          <div class="swatch" style="background:#F15326;border-color:transparent"></div>
+          <div class="swatch-name">Orange</div>
+          <div style="font-size:15px">#F15326</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">SOS, safety alerts, urgent actions. Purple text on it</div>
+        </div>
+        <div>
+          <div class="swatch" style="background:#FEB703;border-color:transparent"></div>
+          <div class="swatch-name">Yellow</div>
+          <div style="font-size:15px">#FEB703</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">Goals, highlights, primary buttons. Purple text on it</div>
+        </div>
+        <div>
+          <div class="swatch" style="background:#82BA03;border-color:transparent"></div>
+          <div class="swatch-name">Green</div>
+          <div style="font-size:15px">#82BA03</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">Live, confirmed, success</div>
+        </div>
+        <div>
+          <div class="swatch" style="background:#00A6ED;border-color:transparent"></div>
+          <div class="swatch-name">Blue</div>
+          <div style="font-size:15px">#00A6ED</div>
+          <div class="muted" style="font-size:14px;margin-top:4px">AI, links, selection</div>
+        </div>
+      </div>
+
+      <p class="muted" style="margin:28px 0 0;font-size:14px">Contrast on purple: white 16.2:1 · yellow 9.2:1 · green 6.9:1 · blue 5.9:1 · orange 4.6:1. White on orange is only 3.5:1, so don't put white text on orange.</p>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

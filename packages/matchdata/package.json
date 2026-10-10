@@ -1,0 +1,14 @@
+{
+  "name": "@inside/matchdata",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "check": "tsx src/check.ts",
+    "export": "tsx src/export.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
