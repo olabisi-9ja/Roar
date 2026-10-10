@@ -239,7 +239,10 @@ app.get<{ Params: { id: string } }>("/matches/:id/moments", async (request) => {
 app.get<{ Params: { id: string } }>("/media/:id/file", async (request, reply) => {
   const media = await prisma.media.findUnique({ where: { id: request.params.id } });
   if (!media) return reply.code(404).send({ error: "Not found." });
-  if (media.status !== "APPROVED" && !isAdmin(request.headers["x-admin-token"])) return reply.code(404).send({ error: "Not found." });
+  // Unpublished clips: only moderators, and only clips the fan shared with the match community.
+  // "Only me" and "Security only" clips are never served here.
+  const moderatorPreview = isAdmin(request.headers["x-admin-token"]) && media.audience === "community";
+  if (media.status !== "APPROVED" && !moderatorPreview) return reply.code(404).send({ error: "Not found." });
   const name = media.blobUrl.replace(/^\/uploads\//, "");
   if (!/^[\w-]+\.[a-z0-9]+$/.test(name)) return reply.code(404).send({ error: "Not found." });
   const type = name.endsWith(".mp4") ? "video/mp4" : name.endsWith(".webm") ? "video/webm" : name.endsWith(".png") ? "image/png" : "image/jpeg";
