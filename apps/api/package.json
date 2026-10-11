@@ -11,6 +11,7 @@
   "dependencies": {
     "@fastify/cors": "^11.3.1",
     "@fastify/multipart": "^10.1.3",
+    "@inside/ai": "^0.1.0",
     "@inside/database": "^0.1.0",
     "@inside/matchdata": "^0.1.0",
     "@inside/types": "^0.1.0",

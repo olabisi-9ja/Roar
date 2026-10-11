@@ -9,6 +9,7 @@ import multipart from "@fastify/multipart";
 import { prisma, type IncidentType, type Severity } from "@inside/database";
 import type { CuratedMoment, MediaItem } from "@inside/types";
 import type { Fixture } from "@inside/types";
+import { processUpload, triageIncident } from "./agents.js";
 import { getDataset, getInsights, getMatch, listMatches, restartMatch, visibleEvents } from "./replay.js";
 
 const app = Fastify({ logger: true });
@@ -133,7 +134,7 @@ app.post<{
     const match = await ensureMatch(matchId);
     if (!match) return reply.code(404).send({ error: "Match not found." });
     const user = await demoUser();
-    // ponytail: rule-based severity until the Safety Analyst agent scores incidents.
+    // Rule-based severity answers instantly; the Safety Analyst agent refines it a moment later.
     const severity: Severity = type === "MEDICAL" || type === "FIRE" ? "CRITICAL" : "MEDIUM";
     const incident = await prisma.incident.create({
       data: {
@@ -145,6 +146,7 @@ app.post<{
         description: description ?? null,
       },
     });
+    void triageIncident(incident.id).catch((err) => app.log.error(err, "Safety Analyst failed"));
     return reply.code(201).send({ id: incident.id, status: incident.status, severity: incident.severity, createdAt: incident.createdAt });
   },
 );
@@ -204,6 +206,7 @@ app.post("/media", async (request, reply) => {
       audience,
     },
   });
+  void processUpload(media.id, path, file.mimetype).catch((err) => app.log.error(err, "Moment agents failed"));
   return reply.code(201).send({ id: media.id, status: media.status, type: media.type, audience: media.audience });
 });
 
@@ -379,10 +382,17 @@ await app.register(async (admin) => {
     async (request, reply) => {
       const existing = await prisma.moment.findUnique({ where: { id: request.params.id } });
       if (!existing) return reply.code(404).send({ error: "Moment not found." });
-      const moment = await prisma.moment.update({
-        where: { id: request.params.id },
-        data: request.body,
-        include: { bestMedia: { select: { id: true, type: true } } },
+      const moment = await prisma.$transaction(async (tx) => {
+        // Publishing a Moment (e.g. an AI draft) approves the clips it is built from.
+        if (request.body.status === "PUBLISHED") {
+          const links = await tx.momentMedia.findMany({ where: { momentId: request.params.id }, select: { mediaId: true } });
+          await tx.media.updateMany({ where: { id: { in: links.map((l) => l.mediaId) }, status: "PROCESSING" }, data: { status: "APPROVED" } });
+        }
+        return tx.moment.update({
+          where: { id: request.params.id },
+          data: request.body,
+          include: { bestMedia: { select: { id: true, type: true } } },
+        });
       });
       return toCurated(moment);
     },

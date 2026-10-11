@@ -95,6 +95,13 @@ async function Curate({ searchParams }: { searchParams: PageProps<"/curate">["se
                   <button formAction={setMomentStatus.bind(null, m.id, "REMOVED")} className={`${btn} bg-[#F15326]`}>Take down</button>
                 </form>
               )}
+              {m.status === "PROCESSING" && (
+                <form className="flex gap-2">
+                  {m.media && <a href={`/media/${m.media.id}`} target="_blank" className={`${btn} bg-white`}>View clip</a>}
+                  <button formAction={setMomentStatus.bind(null, m.id, "PUBLISHED")} className={`${btn} bg-[#FEB703]`}>Publish</button>
+                  <button formAction={setMomentStatus.bind(null, m.id, "REMOVED")} className={`${btn} bg-[#F15326]`}>Discard</button>
+                </form>
+              )}
               {m.status === "REMOVED" && (
                 <form><button formAction={setMomentStatus.bind(null, m.id, "PUBLISHED")} className={`${btn} bg-white`}>Restore</button></form>
               )}
