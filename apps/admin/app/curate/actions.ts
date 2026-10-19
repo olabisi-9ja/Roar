@@ -36,3 +36,8 @@ export async function rejectMedia(id: string) {
   await adminFetch(`/admin/media/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status: "REJECTED" }) });
   revalidatePath("/curate");
 }
+
+export async function retryAnalysis(id: string) {
+  await adminFetch(`/admin/media/${id}/reanalyze`, { method: "POST" });
+  revalidatePath("/curate");
+}

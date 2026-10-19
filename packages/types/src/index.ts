@@ -56,6 +56,7 @@ export type CuratedMoment = {
   media: { id: string; url: string; type: "PHOTO" | "VIDEO" } | null;
   createdAt: string;
 };
+export type AiStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
 export type MediaItem = {
   id: string;
   matchId: string;
@@ -65,6 +66,9 @@ export type MediaItem = {
   section: string | null;
   url: string;
   uploadedAt: string;
+  aiStatus?: AiStatus;
+  aiError?: string | null;
+  aiAttempts?: number;
 };
 
 export type MatchList = { live: Fixture[]; upcoming: Fixture[]; recent: Fixture[]; source: StatsSource; season?: number };

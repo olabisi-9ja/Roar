@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import type { MatchInsights } from "@inside/matchdata";
 import { Nav } from "@/components/Nav";
 import { Back } from "@/components/Bits";
@@ -9,6 +9,24 @@ import { kickoffText, minuteText, scoreline, useApi, useCurrentMatch } from "@/l
 
 type Mode = "fan" | "analyst";
 const MODE_KEY = "roar.statsMode";
+const MODE_EVENT = "roar:stats-mode";
+
+function subscribeMode(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(MODE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(MODE_EVENT, callback);
+  };
+}
+
+function readMode(): Mode {
+  try {
+    return localStorage.getItem(MODE_KEY) === "analyst" ? "analyst" : "fan";
+  } catch {
+    return "fan";
+  }
+}
 
 const STATE_TEXT = {
   home_control: (h: string) => `${h} in control`,
@@ -21,17 +39,13 @@ export default function Stats() {
   const { match, error, loading } = useCurrentMatch();
   const f = match?.fixture;
   const ins = useApi<MatchInsights>(f ? `/matches/${f.id}/insights` : null, true).data;
-  const [mode, setMode] = useState<Mode>("fan");
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(MODE_KEY) === "analyst") setMode("analyst");
-    } catch {}
-  }, []);
+  // Persisted view preference is external state; reading it during render avoids a cascading effect render.
+  const mode = useSyncExternalStore(subscribeMode, readMode, () => "fan" as Mode);
   const pick = (m: Mode) => {
-    setMode(m);
     try {
       localStorage.setItem(MODE_KEY, m);
     } catch {}
+    window.dispatchEvent(new Event(MODE_EVENT));
   };
 
   const goals = match?.events.filter((e) => e.type === "Goal") ?? [];

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-type Health = { status: string; db: string; stats?: string };
+type Health = { status: string; db: string; stats?: string; ai?: { enabled: boolean; provider: string; model: string; error: string | null } };;
 
 async function ApiStatus() {
   let health: Health | null = null;
@@ -9,7 +9,15 @@ async function ApiStatus() {
     const res = await fetch(`${process.env["API_URL"] ?? "http://localhost:4000"}/health`, { cache: "no-store" });
     health = (await res.json()) as Health;
   } catch {}
-  return <p className="text-[#82BA03]">{health ? `API ${health.status} · DB ${health.db} · data ${health.stats ?? "?"}` : "API unreachable"}</p>;
+  if (!health) return <p className="text-[#82BA03]">API unreachable</p>;
+  return (
+    <div className="text-center">
+      <p className="text-[#82BA03]">API {health.status} · DB {health.db} · data {health.stats ?? "?"}</p>
+      <p className="text-sm opacity-80">
+        AI {health.ai?.enabled ? `${health.ai.provider} · ${health.ai.model}` : health.ai?.error ? `disabled (${health.ai.error})` : "disabled"}
+      </p>
+    </div>
+  );
 }
 
 export default function Home() {
@@ -19,7 +27,10 @@ export default function Home() {
       <Suspense fallback={<p>Checking API…</p>}>
         <ApiStatus />
       </Suspense>
-      <Link href="/curate" className="rounded-full bg-[#FEB703] px-6 py-3 font-bold text-[#3A0648]">Curate the For You feed</Link>
+      <div className="flex flex-wrap justify-center gap-3">
+        <Link href="/curate" className="rounded-full bg-[#FEB703] px-6 py-3 font-bold text-[#3A0648]">Curate the For You feed</Link>
+        <Link href="/incidents" className="rounded-full border-2 border-white px-6 py-3 font-bold text-white">Security incidents</Link>
+      </div>
     </main>
   );
 }

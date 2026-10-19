@@ -1,28 +1,32 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+
+const returningFan = () => {
+  try {
+    return !!localStorage.getItem("roar.matchId");
+  } catch {
+    return false;
+  }
+};
 
 export default function Splash() {
   const router = useRouter();
 
-  const [next, setNext] = useState("/welcome");
-
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let returning = false;
-    try {
-      returning = !!localStorage.getItem("roar.matchId");
-    } catch {}
+    const returning = returningFan();
     const to = returning ? "/live" : "/welcome";
-    setNext(to);
     // Returning fans see the first beat of the animation, then go straight to For You.
     const t = setTimeout(() => router.replace(to), reduced ? 600 : returning ? 1200 : 3700);
     return () => clearTimeout(t);
   }, [router]);
 
+  const skip = () => router.replace(returningFan() ? "/live" : "/welcome");
+
   return (
-    <button type="button" className="splash" onClick={() => router.replace(next)} aria-label="Roar. Tap to skip">
+    <button type="button" className="splash" onClick={skip} aria-label="Roar. Tap to skip">
       <i className="sq sq-o" />
       <i className="sq sq-y" />
       <i className="sq sq-g" />

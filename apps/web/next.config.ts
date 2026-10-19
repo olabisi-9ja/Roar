@@ -5,6 +5,7 @@ const API_URL = process.env["API_URL"] ?? "http://localhost:4000";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
+  poweredByHeader: false,
   // The dev badge sits on top of the header menu on phones. Errors still show.
   devIndicators: false,
   experimental: {
@@ -26,6 +27,10 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
+          { key: "Content-Security-Policy", value: "frame-ancestors 'none'; base-uri 'self'; object-src 'none'" },
+          ...(process.env.NODE_ENV === "production"
+            ? [{ key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" }]
+            : []),
         ],
       },
       {

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Icon } from "./Icon";
-import { me } from "@/lib/data";
 import { MenuButton } from "./Menu";
 
 export function TopBar() {

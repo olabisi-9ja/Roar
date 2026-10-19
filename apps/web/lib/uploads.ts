@@ -2,7 +2,7 @@
 
 // Offline upload queue (TRD 5.5 "Upload fails: resume/retry"). Clips wait in IndexedDB until the network is back.
 
-type Queued = { id: string; blob: Blob; filename: string; matchId: string; section: string; audience: string; createdAt: number };
+type Queued = { id: string; blob: Blob; poster?: Blob; filename: string; matchId: string; section: string; audience: string; createdAt: number };
 
 const DB = "roar";
 const STORE = "uploads";
@@ -27,26 +27,29 @@ async function tx<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRe
 
 export type UploadFields = Omit<Queued, "id" | "createdAt">;
 
-/** Throws on rejection by the API (bad file, unknown match); returns false on network failure. */
-export async function upload(item: UploadFields): Promise<boolean> {
+/** Throws on rejection by the API (bad file, unknown match); returns null on network failure. */
+export async function upload(item: UploadFields): Promise<{ id: string } | null> {
   const form = new FormData();
-  // Fields before the file so the API can read them while streaming.
+  // Fields before the files so the API can read them while streaming.
   form.append("matchId", item.matchId);
   form.append("section", item.section);
   form.append("audience", item.audience);
   form.append("file", item.blob, item.filename);
+  if (item.poster) form.append("poster", item.poster, "poster.jpg");
   let res: Response;
   try {
     res = await fetch("/api/media", { method: "POST", body: form });
   } catch {
-    return false;
+    return null;
   }
-  if (res.status >= 500) return false; // API down: keep it queued
+  if (res.status >= 500) return null; // API down: keep it queued
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(body.error ?? `Upload failed (${res.status})`);
   }
-  return true;
+  const body = await res.json().catch(() => ({}));
+  if (!body.id) throw new Error("Upload succeeded but the API returned no media id.");
+  return { id: body.id };
 }
 
 export const enqueue = (item: UploadFields) =>
@@ -63,7 +66,8 @@ export async function flushUploads() {
     const items = await tx<Queued[]>("readonly", (s) => s.getAll());
     for (const item of items) {
       try {
-        if (!(await upload(item))) break; // still offline, try later
+        const result = await upload(item);
+        if (!result) break; // still offline, try later
       } catch {
         // Rejected by the API: retrying won't help, drop it.
       }

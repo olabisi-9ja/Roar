@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon, type IconName } from "@/components/Icon";
 import { Nav } from "@/components/Nav";
 import { me } from "@/lib/data";
-import { useCurrentMatch } from "@/lib/live";
+import { useApi, useCurrentMatch } from "@/lib/live";
 import { enqueue, upload } from "@/lib/uploads";
 
 type Stage = "source" | "camera" | "preview" | "analysing" | "done";
@@ -16,8 +16,64 @@ const SOURCES: { id: string; title: string; sub: string; icon: IconName; accent:
   { id: "external", title: "External camera", sub: "USB or webcam on this device", icon: "ext", accent: "b", ready: true },
 ];
 
-// ponytail: AI steps are simulated on a timer until the media-analysis worker exists.
-const STEPS = ["Event detected", "Player identified", "Other angles found", "Building the Moment"];
+const STEPS = ["Clip uploaded", "AI is reading the frame", "Checking the match context"];
+
+type AnalysisStatus = {
+  id: string;
+  status: string;
+  audience: string;
+  aiStatus: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED";
+  aiError: string | null;
+  analysis: { eventType: string; confidence: number; description: string; severity: string; safetyRelevant: boolean } | null;
+  moment: { id: string; status: string; title: string } | null;
+};
+
+/** Grab a JPEG frame from a recorded clip so the video analyst has visual context. */
+function makePoster(blob: Blob): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    let settled = false;
+    let fallback = 0;
+    const finish = (result: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(fallback);
+      URL.revokeObjectURL(url);
+      resolve(result);
+    };
+    const capture = () => {
+      try {
+        const width = video.videoWidth || 1280;
+        const height = video.videoHeight || 720;
+        const scale = Math.min(1, 1280 / Math.max(width, height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(width * scale));
+        canvas.height = Math.max(1, Math.round(height * scale));
+        const context = canvas.getContext("2d");
+        if (!context) return finish(null);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((result) => finish(result), "image/jpeg", 0.82);
+      } catch {
+        finish(null);
+      }
+    };
+    video.onloadedmetadata = () => {
+      try {
+        video.currentTime = Math.min(0.25, Math.max(0, (Number.isFinite(video.duration) ? video.duration : 1) / 4));
+      } catch {
+        capture();
+      }
+    };
+    video.onseeked = capture;
+    video.onerror = () => finish(null);
+    fallback = window.setTimeout(capture, 2500);
+    video.src = url;
+  });
+}
 
 export default function Capture() {
   const [stage, setStage] = useState<Stage>("source");
@@ -26,11 +82,15 @@ export default function Capture() {
   const [recording, setRecording] = useState(false);
   const [clipUrl, setClipUrl] = useState("");
   const [clip, setClip] = useState<Blob | null>(null);
+  const [poster, setPoster] = useState<Blob | null>(null);
   const [audience, setAudience] = useState("community");
   const [uploading, setUploading] = useState(false);
-  const [queued, setQueued] = useState(false);
-  const [step, setStep] = useState(0);
+  const [uploadId, setUploadId] = useState<string | null>(null);
   const { match } = useCurrentMatch();
+  const status = useApi<AnalysisStatus>(stage === "analysing" && uploadId ? `/media/${uploadId}/status` : null, true, 1500);
+  const ai = status.data;
+  const terminal = !!ai && ["SUCCEEDED", "FAILED", "SKIPPED"].includes(ai.aiStatus);
+  const step = !ai || ai.aiStatus === "QUEUED" ? 0 : ai.aiStatus === "RUNNING" ? 1 : 2;
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recRef = useRef<MediaRecorder | null>(null);
@@ -43,6 +103,8 @@ export default function Capture() {
 
   async function openCamera() {
     setError("");
+    setPoster(null);
+    setUploadId(null);
     if (!navigator.mediaDevices?.getUserMedia) {
       setError("Camera needs a secure connection (https or localhost).");
       return;
@@ -76,6 +138,8 @@ export default function Capture() {
       const blob = new Blob(chunks, { type: rec.mimeType || "video/webm" });
       setClip(blob);
       setClipUrl(URL.createObjectURL(blob));
+      setPoster(null);
+      void makePoster(blob).then(setPoster);
       stopStream();
       setStage("preview");
     };
@@ -91,27 +155,32 @@ export default function Capture() {
     }
     setError("");
     setUploading(true);
-    const item = { blob: clip, filename: clip.type.includes("mp4") ? "clip.mp4" : "clip.webm", matchId: match.fixture.id, section: me.section, audience };
+    const posterFrame = poster ?? (await makePoster(clip));
+    if (posterFrame && !poster) setPoster(posterFrame);
+    const item = {
+      blob: clip,
+      poster: posterFrame ?? undefined,
+      filename: clip.type.includes("mp4") ? "clip.mp4" : "clip.webm",
+      matchId: match.fixture.id,
+      section: me.section,
+      audience,
+    };
     try {
-      if (!(await upload(item))) {
+      const result = await upload(item);
+      if (!result) {
         // No signal in the stadium: keep the clip and send it when the network is back.
         await enqueue(item);
-        setQueued(true);
         setUploading(false);
         setStage("done");
         return;
       }
+      setUploadId(result.id);
+      setUploading(false);
+      setStage("analysing");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed. Your clip is still here, try again.");
       setUploading(false);
-      return;
     }
-    setQueued(false);
-    setUploading(false);
-    setStage("analysing");
-    setStep(0);
-    STEPS.forEach((_, n) => setTimeout(() => setStep(n + 1), 900 * (n + 1)));
-    setTimeout(() => setStage("done"), 900 * STEPS.length + 600);
   }
 
   if (stage === "camera") {
@@ -136,9 +205,9 @@ export default function Capture() {
       <main className="scr no-nav enter">
         <div className="between"><button className="iconbtn" type="button" aria-label="Retake" onClick={() => setStage("source")}><Icon name="back" /></button><span className="lab">Your clip</span></div>
         <video src={clipUrl} controls playsInline style={{ width: "100%", height: 330, objectFit: "cover", borderRadius: 28, background: "var(--ink)" }} />
-        <label className="field"><input placeholder="Add a caption (optional)" aria-label="Caption" /></label>
         <div className="lab">Share with</div>
         <ShareWith value={audience} onChange={setAudience} />
+        <p className="small">Private and security-only clips are never sent to AI or shown on the public feed.</p>
         {error && <p role="alert" className="card o" style={{ padding: "12px 16px", borderRadius: 18, fontWeight: 600 }}>{error}</p>}
         <button type="button" className="pill full big mt-auto" onClick={send} disabled={uploading}>
           <Icon name="upload" />{uploading ? "Uploading…" : `Send to Roar${match ? ` · ${match.fixture.home.short} v ${match.fixture.away.short}` : ""}`}
@@ -148,20 +217,54 @@ export default function Capture() {
   }
 
   if (stage === "analysing") {
+    const message = !ai
+      ? "Upload received. Waiting for AI analysis to start."
+      : ai.aiStatus === "QUEUED" || ai.aiStatus === "RUNNING"
+        ? "Analysis is running. Your clip is already saved; you can leave this screen."
+        : ai.aiStatus === "FAILED"
+          ? "AI analysis couldn't finish. Your clip is saved for moderator review."
+          : ai.aiStatus === "SKIPPED"
+            ? ai.audience !== "community"
+              ? "This clip is private, so AI analysis is skipped. It won't appear on the public feed."
+              : ai.aiError ?? "AI analysis is not enabled. Your clip is saved for moderator review."
+            : ai.moment
+              ? ai.moment.status === "PUBLISHED"
+                ? `AI matched your clip to “${ai.moment.title}”. It's live.`
+                : `AI matched your clip to “${ai.moment.title}”. It's waiting for a moderator.`
+              : "AI couldn't confidently match this clip to a Moment. It's saved for moderator review.";
     return (
       <main className="scr no-nav enter">
         <div className="vid" style={{ height: 220 }} />
-        <h1 className="d2" style={{ margin: 0 }}>AI is reading your moment</h1>
-        <div className="prog"><i style={{ width: `${(step / STEPS.length) * 100}%` }} /></div>
+        <h1 className="d2" style={{ margin: 0 }}>{terminal ? "Your clip is saved" : "AI is reading your moment"}</h1>
+        <div className="prog"><i style={{ width: `${terminal ? 100 : ((step + 1) / STEPS.length) * 100}%` }} /></div>
         <div className="col" style={{ gap: 10 }} aria-live="polite">
           {STEPS.map((s, n) => (
             <div key={s} className="card t flex" style={{ padding: "14px 16px", borderRadius: 20, opacity: n <= step ? 1 : 0.45 }}>
-              <span className={`av ${n < step ? "g" : "b"}`} style={{ width: 34, height: 34 }}><Icon name={n < step ? "check" : "ai"} size="s" /></span>
+              <span className={`av ${n < step || terminal ? "g" : "b"}`} style={{ width: 34, height: 34 }}><Icon name={n < step || terminal ? "check" : "ai"} size="s" /></span>
               <span className="grow h3" style={{ fontSize: 18 }}>{s}</span>
             </div>
           ))}
         </div>
-        <p className="small">Demo: these steps are simulated until the AI worker is connected.</p>
+        {ai?.analysis && (
+          <div className="card t" style={{ padding: "14px 16px", borderRadius: 20 }}>
+            <b className="h3" style={{ fontSize: 18 }}>{ai.analysis.eventType.toLowerCase()} · {Math.round(ai.analysis.confidence * 100)}% confidence</b>
+            <p className="small" style={{ margin: "6px 0 0" }}>{ai.analysis.description}</p>
+          </div>
+        )}
+        <p className={`card ${terminal ? "g" : "t"}`} style={{ padding: "14px 16px", borderRadius: 18, fontWeight: 600 }}>{message}</p>
+        {status.error && <p role="alert" className="small">Couldn&apos;t refresh the analysis status. Your clip is still saved.</p>}
+        <div className="col mt-auto" style={{ width: "100%" }}>
+          <Link className="pill full big" href="/live">Back to live</Link>
+          {terminal && (
+            <button
+              type="button"
+              className="pill full ghost"
+              onClick={() => { setStage("source"); setClip(null); setClipUrl(""); setPoster(null); setUploadId(null); }}
+            >
+              Capture another
+            </button>
+          )}
+        </div>
       </main>
     );
   }
@@ -175,9 +278,8 @@ export default function Capture() {
           <i className="cf" style={{ right: 30, top: 40, background: "var(--green)", transform: "rotate(-24deg)" }} />
           <i className="cf" style={{ left: 40, top: 170, background: "var(--blue)", transform: "rotate(70deg)" }} />
         </div>
-        <h1 className="d2" style={{ margin: 0 }}>{queued ? "Saved on your phone" : "Your angle is in!"}</h1>
-        <p className="body">{queued ? "No signal right now. It uploads by itself when you're back online. " : ""}{queued ? "Going to" : "Uploaded to"} {match ? `${match.fixture.home.name} v ${match.fixture.away.name}` : "the match"}. It joins the nearest Moment once AI analysis is connected.</p>
-        <div className="card y" style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}><Icon name="crown" size="l" /><span className="d3">+50 crowns</span></div>
+        <h1 className="d2" style={{ margin: 0 }}>Saved on your phone</h1>
+        <p className="body">No signal right now. Your clip will upload when you&apos;re back online. AI analysis runs after the upload, so you can leave this screen.</p>
         <div className="col mt-auto" style={{ width: "100%" }}>
           <Link className="pill full big" href="/live">Back to live</Link>
           <button type="button" className="pill full ghost" onClick={() => setStage("source")}>Capture another</button>

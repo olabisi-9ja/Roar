@@ -20,7 +20,13 @@ export function proxy(request: NextRequest) {
 
   const header = request.headers.get("authorization") ?? "";
   if (header.startsWith("Basic ")) {
-    const decoded = atob(header.slice(6));
+    let decoded = "";
+    try {
+      decoded = atob(header.slice(6));
+    } catch {
+      // Malformed base64 (including non-ASCII headers) is just a failed login, not a 500.
+      return new NextResponse("Sign in required.", { status: 401, headers: { "WWW-Authenticate": 'Basic realm="Roar admin", charset="UTF-8"' } });
+    }
     const split = decoded.indexOf(":");
     if (split > 0 && safeEqual(decoded.slice(0, split), USER) && safeEqual(decoded.slice(split + 1), password)) {
       return NextResponse.next();

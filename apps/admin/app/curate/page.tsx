@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { CuratedMoment, MatchList, MediaItem } from "@inside/types";
 import { adminFetch, publicJson } from "@/lib/api";
-import { publishMoment, rejectMedia, setMomentStatus, setPromoted } from "./actions";
+import { publishMoment, rejectMedia, retryAnalysis, setMomentStatus, setPromoted } from "./actions";
 
 export default function CuratePage(props: PageProps<"/curate">) {
   return (
@@ -58,7 +58,13 @@ async function Curate({ searchParams }: { searchParams: PageProps<"/curate">["se
                 <img src={`/media/${m.id}`} alt="Fan upload" className="aspect-[9/12] w-full bg-[#3A0648] object-cover" />
               )}
               <form action={publishMoment} className="grid gap-2 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-[rgba(58,6,72,0.72)]">{m.type} · Section {m.section ?? "?"} · {new Date(m.uploadedAt).toLocaleTimeString()}</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-[rgba(58,6,72,0.72)]">
+                  {m.type} · Section {m.section ?? "?"} · {new Date(m.uploadedAt).toLocaleTimeString()} · AI {m.aiStatus?.toLowerCase() ?? "queued"}
+                </p>
+                {m.aiError && <p className="text-xs font-semibold text-[#F15326]">AI: {m.aiError}</p>}
+                {(m.aiStatus === "FAILED" || m.aiStatus === "SKIPPED") && (
+                  <button formAction={retryAnalysis.bind(null, m.id)} className={`${btn} bg-white text-left`}>Retry AI analysis</button>
+                )}
                 <input type="hidden" name="matchId" value={matchId} />
                 <input type="hidden" name="mediaId" value={m.id} />
                 <label className="sr-only" htmlFor={`t-${m.id}`}>Title</label>

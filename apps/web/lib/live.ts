@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import type { Fixture, MatchDetail, MatchEvent, MatchList } from "@inside/types";
 import type { Accent } from "./data";
 
 // The API caches the provider, so polling it every 15s costs no extra provider calls.
 const POLL_MS = 15_000;
 const MATCH_KEY = "roar.matchId";
+const MATCH_EVENT = "roar:match";
 
-export function useApi<T>(path: string | null, poll = false) {
+export function useApi<T>(path: string | null, poll = false, pollMs = POLL_MS) {
   const [data, setData] = useState<T | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,12 +31,12 @@ export function useApi<T>(path: string | null, poll = false) {
       }
     };
     load();
-    const t = poll ? setInterval(load, POLL_MS) : undefined;
+    const t = poll ? setInterval(load, pollMs) : undefined;
     return () => {
       alive = false;
       clearInterval(t);
     };
-  }, [path, poll]);
+  }, [path, poll, pollMs]);
 
   return { data, error, loading: !data && !error };
 }
@@ -55,28 +56,34 @@ function readStored() {
   }
 }
 
+function subscribeMatch(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(MATCH_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(MATCH_EVENT, callback);
+  };
+}
+
 export function selectMatch(id: string) {
   try {
     localStorage.setItem(MATCH_KEY, id);
   } catch {
     // private mode: falls back to the default match
   }
+  window.dispatchEvent(new Event(MATCH_EVENT));
 }
 
 /** The match the fan picked, or the best default: live first, then next up, then latest result. */
 export function useCurrentMatch() {
   const list = useApi<MatchList>("/matches", true);
-  const [stored, setStored] = useState<string | null>(null);
-  useEffect(() => setStored(readStored()), []);
+  const stored = useSyncExternalStore(subscribeMatch, readStored, () => null);
 
   const all = list.data ? [...list.data.live, ...list.data.upcoming, ...list.data.recent] : [];
   const id = (stored && all.some((f) => f.id === stored) ? stored : all[0]?.id) ?? null;
   const detail = useApi<MatchDetail>(id ? `/matches/${id}` : null, true);
 
-  const pick = useCallback((next: string) => {
-    selectMatch(next);
-    setStored(next);
-  }, []);
+  const pick = useCallback((next: string) => selectMatch(next), []);
 
   return {
     list: list.data,

@@ -13,6 +13,8 @@
     "dev:web": "npm run dev -w @inside/web",
     "dev:mobile": "npm run start -w @inside/mobile",
     "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
     "db:local": "npm run db:local -w @inside/database",
     "db:deploy": "npm run migrate:deploy -w @inside/database"
   }

@@ -9,7 +9,7 @@ Built for the Inside the Game: Developer Hackathon. AI audience intelligence pla
 - `apps/api`: REST API (Fastify, Prisma)
 - `packages/database`: Prisma schema and client
 - `packages/types`: shared types, including the AI result contract
-- `packages/ai`: the AI agents (Moment Analyst, Storyteller, Safety Analyst) on Claude via Microsoft Foundry. `npm run check -w @inside/ai` smoke-tests them
+- `packages/ai`: the AI agents (Moment Analyst, Storyteller, Safety Analyst) on Microsoft Foundry, using either an Azure OpenAI deployment (`AI_PROVIDER=azure-openai`) or Claude (`AI_PROVIDER=microsoft-foundry`). `npm run check -w @inside/ai` smoke-tests them
 - `workers/`: media analysis, moment engine, incident engine (not started)
 - `infrastructure/`: Azure and GitHub config (not started)
 - `docs/`: spec and design notes

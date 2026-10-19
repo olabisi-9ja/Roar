@@ -36,6 +36,15 @@ enum MediaStatus {
   REMOVED
 }
 
+// Independent of moderation status: AI analysis runs asynchronously and may fail or be skipped.
+enum AiStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 enum EventType {
   GOAL
   CELEBRATION
@@ -129,43 +138,52 @@ model Player {
 }
 
 model Media {
-  id             String       @id @default(cuid())
-  userId         String       @map("user_id")
-  matchId        String       @map("match_id")
-  blobUrl        String       @map("blob_url")
-  thumbnailUrl   String?      @map("thumbnail_url")
+  id             String          @id @default(cuid())
+  userId         String          @map("user_id")
+  matchId        String          @map("match_id")
+  blobUrl        String          @map("blob_url")
+  thumbnailUrl   String?         @map("thumbnail_url")
   type           MediaType
   duration       Int?
-  capturedAt     DateTime     @map("captured_at")
-  uploadedAt     DateTime     @default(now()) @map("uploaded_at")
+  capturedAt     DateTime        @map("captured_at")
+  uploadedAt     DateTime        @default(now()) @map("uploaded_at")
   section        String?
   latitude       Float?
   longitude      Float?
-  status         MediaStatus  @default(PROCESSING)
+  status         MediaStatus     @default(PROCESSING)
   // Who can see it: community, me (only the uploader) or security.
-  audience       String       @default("community")
-  user           User         @relation(fields: [userId], references: [id])
-  match          Match        @relation(fields: [matchId], references: [id])
+  audience       String          @default("community")
+  aiStatus       AiStatus        @default(QUEUED) @map("ai_status")
+  aiError        String?         @map("ai_error")
+  aiAttempts     Int             @default(0) @map("ai_attempts")
+  aiUpdatedAt    DateTime?       @map("ai_updated_at")
+  user           User            @relation(fields: [userId], references: [id])
+  match          Match           @relation(fields: [matchId], references: [id])
   analysis       AiAnalysis?
   momentLinks    MomentMedia[]
   incidentLinks  IncidentMedia[]
-  bestForMoments Moment[]     @relation("BestMedia")
+  bestForMoments Moment[]        @relation("BestMedia")
 
+  // Feed/moderation lookups and the owner's private gallery.
+  @@index([matchId, audience, uploadedAt])
+  @@index([matchId, status])
+  @@index([userId, uploadedAt])
   @@map("media")
 }
 
 model AiAnalysis {
-  id          String    @id @default(cuid())
-  mediaId     String    @unique @map("media_id")
-  eventType   EventType @map("event_type")
-  confidence  Float
-  description String
-  playerIds   String[]  @map("player_ids")
-  severity    Severity  @default(NORMAL)
-  labels      String[]
-  model       String
-  processedAt DateTime  @default(now()) @map("processed_at")
-  media       Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
+  mediaId        String    @unique @map("media_id")
+  eventType      EventType @map("event_type")
+  confidence     Float
+  description    String
+  playerIds      String[]  @map("player_ids")
+  severity       Severity  @default(NORMAL)
+  safetyRelevant Boolean   @default(false) @map("safety_relevant")
+  labels         String[]
+  model          String
+  processedAt    DateTime  @default(now()) @map("processed_at")
+  media          Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@map("ai_analysis")
 }
@@ -193,6 +211,8 @@ model Moment {
   media       MomentMedia[]
   reactions   Reaction[]
 
+  @@index([matchId, status, promoted, createdAt])
+  @@index([matchId, createdAt])
   @@map("moments")
 }
 
@@ -205,6 +225,7 @@ model MomentMedia {
   media      Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([momentId, mediaId])
+  @@index([mediaId])
   @@map("moment_media")
 }
 
@@ -226,6 +247,9 @@ model Incident {
   reportedBy   User            @relation(fields: [reportedById], references: [id])
   media        IncidentMedia[]
 
+  // Dashboard filters, and the seat/type duplicate check used when an SOS is retried.
+  @@index([matchId, status, severity, createdAt])
+  @@index([matchId, section, type, createdAt])
   @@map("incidents")
 }
 
@@ -236,16 +260,17 @@ model IncidentMedia {
   media      Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([incidentId, mediaId])
+  @@index([mediaId])
   @@map("incident_media")
 }
 
 model Reaction {
-  id       String  @id @default(cuid())
-  momentId String  @map("moment_id")
-  userId   String  @map("user_id")
+  id       String @id @default(cuid())
+  momentId String @map("moment_id")
+  userId   String @map("user_id")
   type     String
-  moment   Moment  @relation(fields: [momentId], references: [id], onDelete: Cascade)
-  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moment   Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([momentId, userId])
   @@map("reactions")
