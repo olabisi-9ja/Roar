@@ -42,7 +42,8 @@ With the current deployment (`wittyocean-f89cf633.eastus2.azurecontainerapps.io`
 | `AZURE_STORAGE_ACCOUNT` | `stroar7c4a2e` |
 | `AZURE_STORAGE_CONTAINER` | `media` |
 | `AI_PROVIDER` / `AZURE_OPENAI_RESOURCE` / `AI_MODEL` | `azure-openai` / `roar-foundry-7c4a2e` / `gpt-5-mini` |
-| `FORCE_SECURE_COOKIES`, `TRUST_PROXY` | `true` behind Container Apps ingress |
+| `FORCE_SECURE_COOKIES` | `true` behind Container Apps ingress |
+| `TRUST_PROXY` | `1` (hop count) behind Container Apps ingress. `true` trusts every hop and lets clients spoof their IP past the rate limits |
 | `CORS_ORIGINS` | public web and admin origins |
 
 The API authenticates to Blob Storage with its managed identity

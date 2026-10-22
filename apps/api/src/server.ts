@@ -19,7 +19,11 @@ import { cacheControlFor, mediaVisibility } from "./media-policy.js";
 import { getDataset, getInsights, getMatch, listMatches, restartMatch, visibleEvents } from "./replay.js";
 import { mediaStore } from "./storage.js";
 
-const app = Fastify({ logger: true, trustProxy: process.env["TRUST_PROXY"] === "true" });
+// TRUST_PROXY is a hop count (Container Apps ingress = 1). "true" trusts every hop, which lets a client
+// spoof request.ip via X-Forwarded-For and dodge the rate limits, so only use it behind a proxy that overwrites the header.
+const TRUST_PROXY = process.env["TRUST_PROXY"];
+const TRUSTED_HOPS = Number(TRUST_PROXY) || 0;
+const app = Fastify({ logger: true, trustProxy: TRUST_PROXY === "true" || ((_address: string, hop: number) => hop < TRUSTED_HOPS) });
 // Staging area for in-flight uploads. Durable files live in the media store (disk or Azure Blob).
 const UPLOADS = join(process.cwd(), "uploads");
 const MAX_UPLOAD = 100 * 1024 * 1024;
@@ -654,10 +658,17 @@ await app.register(async (admin) => {
           const links = await tx.momentMedia.findMany({ where: { momentId: request.params.id }, select: { mediaId: true } });
           await tx.media.updateMany({ where: { id: { in: links.map((l) => l.mediaId) }, status: "PROCESSING" }, data: { status: "APPROVED" } });
         }
-        // Removing a Moment also revokes every clip that was only live because of it.
+        // Removing a Moment also revokes every clip that was only live because of it. Clips still backing
+        // another published Moment stay up.
         if (request.body.status === "REMOVED") {
           const links = await tx.momentMedia.findMany({ where: { momentId: request.params.id }, select: { mediaId: true } });
-          await tx.media.updateMany({ where: { id: { in: links.map((l) => l.mediaId) } }, data: { status: "REMOVED" } });
+          const ids = links.map((l) => l.mediaId);
+          const shared = await tx.momentMedia.findMany({
+            where: { mediaId: { in: ids }, momentId: { not: request.params.id }, moment: { status: "PUBLISHED" } },
+            select: { mediaId: true },
+          });
+          const keep = new Set(shared.map((l) => l.mediaId));
+          await tx.media.updateMany({ where: { id: { in: ids.filter((id) => !keep.has(id)) } }, data: { status: "REMOVED" } });
         }
         return tx.moment.update({
           where: { id: request.params.id },

@@ -25,6 +25,13 @@ Built for the Inside the Game: Developer Hackathon. AI audience intelligence pla
 
 The web app calls the API through its own `/api` path (a Next.js rewrite), so phones never talk to port 4000 directly.
 
+## Deployment
+
+Live on Azure Container Apps (API, fan web app, admin console) with Azure Database for PostgreSQL,
+private Blob Storage, and Microsoft Foundry. Start with [docs/HANDOFF.md](docs/HANDOFF.md) for the
+resource inventory, live URLs, deploy/verify commands, operating rules, and known gotchas;
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) covers the build and rollout steps in detail.
+
 ## Synthetic match data
 
 `packages/matchdata` turns a match storyline (clubs, momentum, goals, cards, subs) into a full, football-realistic event log: passes with distance, difficulty and ball speed, pressure, tackles, interceptions, shots with xG and speed, corners, fouls, and per-minute player distance and top speed. Every match is checked for realism before it can be replayed (`npm run check -w @inside/matchdata`), and `npm run export -w @inside/matchdata` writes the datasets to `packages/matchdata/datasets/`. Clubs and players are fictional.

@@ -1,0 +1,131 @@
+<!doctype html>
+<!-- Roar for Meta Ray-Ban Display: a glanceable live-match overlay. Plain HTML so it stays light on the
+     glasses' browser; it reads the same public /api endpoints as the fan app. Black pixels are unlit
+     (see-through) on the additive display, so the canvas stays black and only bounded surfaces carry light. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Roar live match: score, clock and the crowd's latest Moments.">
+  <meta name="mrbd-web-app-capable" content="yes">
+  <title>Roar</title>
+  <style>
+    :root { --yellow: #FEB703; --blue: #00A6ED; --ink: #F4F4F4; --dim: #A8A8A8; --surface: #1C1C1C; }
+    * { box-sizing: border-box; margin: 0; }
+    html, body { block-size: 100%; background: #000; color: var(--ink); font: 500 1.05rem/1.35 system-ui, sans-serif; }
+    .shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.75rem; block-size: 100%; padding: 1.5rem; overflow: hidden; }
+    .score { background: var(--surface); border-radius: 1rem; padding: 0.75rem 1rem; text-align: center; }
+    .teams { display: flex; justify-content: center; align-items: baseline; gap: 0.75rem; font-weight: 800; font-size: 1.6rem; }
+    .goals { color: var(--yellow); font-size: 2.4rem; }
+    .clock { color: var(--blue); font-weight: 700; }
+    ul { list-style: none; padding: 0; overflow-y: auto; min-block-size: 0; display: grid; gap: 0.5rem; align-content: start; }
+    li { background: var(--surface); border-radius: 0.75rem; padding: 0.5rem 0.75rem; }
+    li:focus, button:focus { outline: 3px solid var(--yellow); outline-offset: 2px; }
+    .tag { color: var(--yellow); font-weight: 800; margin-inline-end: 0.4rem; }
+    .meta { color: var(--dim); font-size: 0.9rem; }
+    .bar { display: flex; gap: 0.5rem; }
+    button { flex: 1; min-inline-size: 0; background: var(--surface); color: var(--ink); border: 2px solid #444; border-radius: 0.75rem; padding: 0.6rem; font: inherit; font-weight: 700; }
+    .status { color: var(--dim); text-align: center; }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="score" aria-live="polite">
+      <div class="teams"><span id="home">Roar</span><span class="goals" id="goals">–</span><span id="away"></span></div>
+      <div class="clock" id="clock">Loading…</div>
+    </section>
+    <ul id="feed" aria-label="Latest moments"></ul>
+    <div class="bar">
+      <button id="next" type="button">Next match</button>
+      <button id="alerts" type="button" aria-pressed="false">Goal alerts: off</button>
+    </div>
+  </main>
+  <script>
+    const POLL_MS = 15000;
+    const KEY = "roar.matchId";
+    const $ = (id) => document.getElementById(id);
+    const store = { get: () => { try { return localStorage.getItem(KEY); } catch { return null; } }, set: (v) => { try { localStorage.setItem(KEY, v); } catch {} } };
+    let fixtures = [];
+    let matchId = store.get();
+    let alerts = false;
+    let seenGoals = null; // ids of goals already shown, so alerts fire only for new ones
+
+    async function api(path) {
+      const res = await fetch(`/api${path}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      return res.json();
+    }
+
+    const clockText = (f) => f.status === "LIVE" ? (f.minute != null ? `${f.minute}'` : f.statusText) : f.status === "FINISHED" ? "Full time" : new Date(f.kickoff).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+
+    function item(tag, title, meta) {
+      const li = document.createElement("li");
+      li.tabIndex = 0;
+      const t = document.createElement("span");
+      t.className = "tag";
+      t.textContent = tag;
+      const m = document.createElement("div");
+      m.className = "meta";
+      m.textContent = meta;
+      li.append(t, title, m); // textContent only: Moment titles are AI-written and never trusted as HTML
+      return li;
+    }
+
+    function speak(text) {
+      if (!alerts || !("speechSynthesis" in window)) return;
+      try { speechSynthesis.speak(new SpeechSynthesisUtterance(text)); } catch {}
+    }
+
+    async function refresh() {
+      try {
+        const list = await api("/matches");
+        fixtures = [...list.live, ...list.upcoming, ...list.recent];
+        if (!fixtures.some((f) => f.id === matchId)) matchId = fixtures[0]?.id ?? null;
+        if (!matchId) { $("clock").textContent = "No matches right now"; return; }
+        const [detail, moments] = await Promise.all([api(`/matches/${matchId}`), api(`/matches/${matchId}/moments`)]);
+        const f = detail.fixture;
+        $("home").textContent = f.home.short;
+        $("away").textContent = f.away.short;
+        $("goals").textContent = f.score ? `${f.score[0]}–${f.score[1]}` : "v";
+        $("clock").textContent = clockText(f);
+
+        const goals = detail.events.filter((e) => e.type === "Goal");
+        if (seenGoals) for (const g of goals) if (!seenGoals.has(g.id)) speak(`Goal! ${g.player ?? (g.team === "home" ? f.home.name : f.away.name)}. ${f.home.short} ${f.score?.[0] ?? 0}, ${f.away.short} ${f.score?.[1] ?? 0}.`);
+        seenGoals = new Set(goals.map((g) => g.id));
+
+        const rows = [
+          ...moments.moments.map((m) => ({ minute: m.minute ?? -1, node: item(m.kind === "GOAL" ? "GOAL" : "CROWD", m.title, m.minute != null ? `${m.minute}' · from the stands` : "From the stands") })),
+          ...detail.events.filter((e) => e.type === "Goal" || e.type === "Card").map((e) => ({
+            minute: e.minute,
+            node: item(e.type === "Goal" ? "GOAL" : e.detail.toUpperCase(), e.player ?? (e.team === "home" ? f.home.name : f.away.name), `${e.minute}' · ${e.team === "home" ? f.home.short : f.away.short}`),
+          })),
+        ].sort((a, b) => b.minute - a.minute).slice(0, 8);
+
+        const focused = document.activeElement?.closest?.("#feed") ? [...$("feed").children].indexOf(document.activeElement) : -1;
+        $("feed").replaceChildren(...(rows.length ? rows.map((r) => r.node) : [item("", "No moments yet", "They appear here as fans share them")]));
+        if (focused >= 0) $("feed").children[Math.min(focused, $("feed").children.length - 1)]?.focus();
+      } catch {
+        // Keep the last good score on screen; just flag that it may be stale.
+        $("clock").textContent = "Reconnecting…";
+      }
+    }
+
+    $("next").addEventListener("click", () => {
+      if (!fixtures.length) return;
+      const i = fixtures.findIndex((f) => f.id === matchId);
+      matchId = fixtures[(i + 1) % fixtures.length].id;
+      store.set(matchId);
+      seenGoals = null;
+      refresh();
+    });
+    $("alerts").addEventListener("click", () => {
+      alerts = !alerts;
+      $("alerts").textContent = `Goal alerts: ${alerts ? "on" : "off"}`;
+      $("alerts").setAttribute("aria-pressed", String(alerts));
+    });
+
+    refresh();
+    setInterval(refresh, POLL_MS);
+  </script>
+</body>
+</html>

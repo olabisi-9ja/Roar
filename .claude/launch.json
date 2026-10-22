@@ -9,6 +9,13 @@
       "url": "https://localhost:3001"
     },
     {
+      "name": "web-live-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "-w", "@inside/web", "--", "-p", "3003"],
+      "env": { "API_URL": "https://ca-api.wittyocean-f89cf633.eastus2.azurecontainerapps.io" },
+      "port": 3003
+    },
+    {
       "name": "admin",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "-w", "@inside/admin"],
