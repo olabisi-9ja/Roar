@@ -8,6 +8,7 @@ import { MenuButton } from "@/components/Menu";
 import { CallItCard } from "@/components/CallIt";
 import { kickoffText, minuteText, momentOf, scoreline, useApi, useCurrentMatch } from "@/lib/live";
 import { rankFeed } from "@/lib/feed";
+import { langQuery, useLang } from "@/lib/lang";
 
 const KIND_LABEL: Record<string, [string, string]> = {
   CROWD: ["Crowd moment", "b"],
@@ -83,7 +84,8 @@ function EventSlide({ e, f }: { e: MatchEvent; f: Fixture }) {
 export default function ForYou() {
   const { match, error, loading } = useCurrentMatch();
   const f = match?.fixture;
-  const curated = useApi<{ moments: CuratedMoment[] }>(f ? `/matches/${f.id}/moments` : null, true);
+  const lang = useLang();
+  const curated = useApi<{ moments: CuratedMoment[] }>(f ? `/matches/${f.id}/moments${langQuery(lang)}` : null, true);
   const items = match ? rankFeed(match.events, curated.data?.moments ?? []) : [];
 
   return (

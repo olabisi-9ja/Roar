@@ -30,6 +30,7 @@ export default function Home() {
       <div className="flex flex-wrap justify-center gap-3">
         <Link href="/curate" className="rounded-full bg-[#FEB703] px-6 py-3 font-bold text-[#3A0648]">Curate the For You feed</Link>
         <Link href="/incidents" className="rounded-full border-2 border-white px-6 py-3 font-bold text-white">Security incidents</Link>
+        <Link href="/partners" className="rounded-full bg-[#00A6ED] px-6 py-3 font-bold text-[#3A0648]">Partners and API keys</Link>
       </div>
     </main>
   );

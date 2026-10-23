@@ -7,16 +7,20 @@ import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import { prisma, type IncidentStatus, type IncidentType, type Severity } from "@inside/database";
-import { aiStatus } from "@inside/ai";
-import type { CuratedMoment, MediaItem } from "@inside/types";
+import { aiStatus, isLanguage, LANGUAGES, type Depth, type Language } from "@inside/ai";
+import type { MediaItem } from "@inside/types";
 import type { Fixture } from "@inside/types";
 import { processUpload, triageIncident } from "./agents.js";
 import { isActorId, parseCookie } from "./cookies.js";
 import { hasValidSignature } from "./file-signature.js";
+import { absoluteMedia, absolutize, localizeMoments, notifyPartners, publishedMoments, recapFor, tacticsFor } from "./insights.js";
 import { canTransitionIncident, INCIDENT_STATUSES, severityForReport } from "./incident-rules.js";
 import { pruneBuckets, take } from "./limits.js";
+import { mediaUrl, toCurated } from "./curated.js";
 import { cacheControlFor, mediaVisibility } from "./media-policy.js";
 import { getDataset, getInsights, getMatch, listMatches, restartMatch, visibleEvents } from "./replay.js";
+import { hashKey, newApiKey, newWebhookSecret, webhookUrlProblem } from "./partners.js";
+import { RECAP_LENGTHS, type RecapLength } from "./recap.js";
 import { mediaStore } from "./storage.js";
 
 // TRUST_PROXY is a hop count (Container Apps ingress = 1). "true" trusts every hop, which lets a client
@@ -365,30 +369,53 @@ app.post("/media", async (request, reply) => {
 // ---- Curated moments: audience, crowd and celebration moments on the For You feed ----
 
 const KINDS = ["CROWD", "CELEBRATION", "GOAL", "PLAYER", "FOUL", "OTHER"] as const;
-const mediaUrl = (id: string) => `/api/media/${id}/file`;
 
-function toCurated(m: {
-  id: string; matchId: string; eventType: string; title: string; description: string; minute: number | null;
-  promoted: boolean; source: string; status: string; createdAt: Date; bestMedia: { id: string; type: string } | null;
-}): CuratedMoment {
-  return {
-    id: m.id, matchId: m.matchId, kind: m.eventType as CuratedMoment["kind"], title: m.title, description: m.description,
-    minute: m.minute, promoted: m.promoted, source: m.source === "ai" ? "ai" : "editor", status: m.status as CuratedMoment["status"],
-    media: m.bestMedia ? { id: m.bestMedia.id, url: mediaUrl(m.bestMedia.id), type: m.bestMedia.type as "PHOTO" | "VIDEO" } : null,
-    createdAt: m.createdAt.toISOString(),
-  };
-}
+// Public: published moments for the fan feed, optionally in the fan's language (?lang=fr).
+const LANG_QUERY = { type: "object", additionalProperties: false, properties: { lang: { type: "string", enum: Object.keys(LANGUAGES) } } } as const;
 
-// Public: published moments for the fan feed.
-app.get<{ Params: { id: string } }>("/matches/:id/moments", async (request) => {
-  const moments = await prisma.moment.findMany({
-    where: { matchId: request.params.id, status: "PUBLISHED" },
-    include: { bestMedia: { select: { id: true, type: true } } },
-    orderBy: [{ promoted: "desc" }, { createdAt: "desc" }],
-    take: 50,
-  });
-  return { moments: moments.map(toCurated) };
+app.get<{ Params: { id: string }; Querystring: { lang?: Language } }>("/matches/:id/moments", { schema: { querystring: LANG_QUERY } }, async (request) => {
+  return { moments: await localizeMoments(await publishedMoments(request.params.id), request.query.lang ?? "en") };
 });
+
+// Tactics Analyst: why a goal worked, at beginner or expert depth. Facts come from the event log.
+app.get<{ Params: { id: string; eventId: string }; Querystring: { depth?: Depth; lang?: Language } }>(
+  "/matches/:id/events/:eventId/tactics",
+  {
+    schema: {
+      querystring: {
+        type: "object",
+        additionalProperties: false,
+        properties: { depth: { type: "string", enum: ["beginner", "expert"] }, lang: { type: "string", enum: Object.keys(LANGUAGES) } },
+      },
+    },
+  },
+  async (request, reply) => {
+    if (rateLimited(request, reply, "insights", 60, 60_000)) return reply;
+    const result = await tacticsFor(request.params.id, request.params.eventId, request.query.depth ?? "beginner", request.query.lang ?? "en");
+    if (!result) return reply.code(404).send({ error: "Tactics are explained for goals that have happened." });
+    return result;
+  },
+);
+
+// Recap: a 15/30/60s multi-angle highlight playlist with narration, built from published fan Moments and goals.
+app.get<{ Params: { id: string }; Querystring: { length?: RecapLength; lang?: Language } }>(
+  "/matches/:id/recap",
+  {
+    schema: {
+      querystring: {
+        type: "object",
+        additionalProperties: false,
+        properties: { length: { type: "integer", enum: [...RECAP_LENGTHS] }, lang: { type: "string", enum: Object.keys(LANGUAGES) } },
+      },
+    },
+  },
+  async (request, reply) => {
+    if (rateLimited(request, reply, "insights", 60, 60_000)) return reply;
+    const recap = await recapFor(request.params.id, request.query.length ?? 30, request.query.lang ?? "en");
+    if (!recap) return reply.code(404).send({ error: "Match not found." });
+    return recap;
+  },
+);
 
 // Upload progress and AI status for the capture screen. Media bytes are served separately with the ACL below.
 app.get<{ Params: { id: string } }>("/media/:id/status", async (request, reply) => {
@@ -537,6 +564,49 @@ await app.register(async (admin) => {
 
   admin.get("/admin/ai/status", async () => aiStatus());
 
+  // Partners (studios, streaming platforms). The API key and webhook secret are returned once, at creation.
+  admin.get("/admin/partners", async () => {
+    const partners = await prisma.partner.findMany({ orderBy: { createdAt: "desc" } });
+    return { partners: partners.map(({ keyHash: _k, webhookSecret, ...p }) => ({ ...p, hasWebhook: !!webhookSecret })) };
+  });
+
+  admin.post<{ Body: { name: string; webhookUrl?: string; language?: Language } }>(
+    "/admin/partners",
+    {
+      schema: {
+        body: {
+          type: "object",
+          required: ["name"],
+          additionalProperties: false,
+          properties: {
+            name: { type: "string", minLength: 1, maxLength: 80 },
+            webhookUrl: { type: "string", maxLength: 500 },
+            language: { type: "string", enum: Object.keys(LANGUAGES) },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const { name, webhookUrl, language } = request.body;
+      if (webhookUrl) {
+        const problem = webhookUrlProblem(webhookUrl, process.env["NODE_ENV"] === "production");
+        if (problem) return reply.code(400).send({ error: problem });
+      }
+      const apiKey = newApiKey();
+      const webhookSecret = webhookUrl ? newWebhookSecret() : null;
+      const partner = await prisma.partner.create({
+        data: { name, keyHash: hashKey(apiKey), webhookUrl: webhookUrl ?? null, webhookSecret, language: language ?? "en" },
+      });
+      return reply.code(201).send({ id: partner.id, name: partner.name, language: partner.language, webhookUrl: partner.webhookUrl, apiKey, webhookSecret });
+    },
+  );
+
+  admin.delete<{ Params: { id: string } }>("/admin/partners/:id", async (request, reply) => {
+    const { count } = await prisma.partner.updateMany({ where: { id: request.params.id }, data: { active: false } });
+    if (!count) return reply.code(404).send({ error: "Partner not found." });
+    return { id: request.params.id, active: false };
+  });
+
   admin.get<{ Querystring: { matchId?: string } }>("/admin/media", async (request) => {
     const media = await prisma.media.findMany({
       where: { ...(request.query.matchId ? { matchId: request.query.matchId } : {}), audience: "community" },
@@ -625,7 +695,9 @@ await app.register(async (admin) => {
           include: { bestMedia: { select: { id: true, type: true } } },
         });
       });
-      return reply.code(201).send(toCurated(moment));
+      const curated = toCurated(moment);
+      void notifyPartners(curated, (msg, extra) => app.log.info(extra, msg)).catch((err) => app.log.error(err, "Partner webhooks failed"));
+      return reply.code(201).send(curated);
     },
   );
 
@@ -676,7 +748,11 @@ await app.register(async (admin) => {
           include: { bestMedia: { select: { id: true, type: true } } },
         });
       });
-      return toCurated(moment);
+      const curated = toCurated(moment);
+      if (request.body.status === "PUBLISHED" && existing.status !== "PUBLISHED") {
+        void notifyPartners(curated, (msg, extra) => app.log.info(extra, msg)).catch((err) => app.log.error(err, "Partner webhooks failed"));
+      }
+      return curated;
     },
   );
 
@@ -701,6 +777,61 @@ await app.register(async (admin) => {
     },
   );
 });
+
+// ---- Partner API (studios and streaming platforms): published Moments, recaps and webhooks ----
+
+await app.register(async (partner) => {
+  partner.decorateRequest("partnerLanguage", "en");
+  partner.addHook("onRequest", async (request, reply) => {
+    const key = request.headers["x-api-key"];
+    if (typeof key !== "string" || !key.startsWith("roar_pk_")) return reply.code(401).send({ error: "API key required (x-api-key)." });
+    const found = await prisma.partner.findUnique({ where: { keyHash: hashKey(key) } });
+    if (!found?.active) return reply.code(401).send({ error: "Invalid API key." });
+    // Per-key quota rather than per-IP: partners call from shared cloud egress.
+    pruneBuckets();
+    const gate = take(`partner:${found.id}`, 600, 600 / 60_000);
+    if (!gate.ok) {
+      reply.header("Retry-After", String(gate.retryAfter));
+      return reply.code(429).send({ error: "Too many requests. Try again shortly." });
+    }
+    request.partnerLanguage = found.language;
+    void prisma.partner.update({ where: { id: found.id }, data: { lastUsedAt: new Date() } }).catch(() => undefined);
+  });
+
+  const langOf = (request: FastifyRequest, query?: Language): Language => query ?? (isLanguage(request.partnerLanguage) ? request.partnerLanguage : "en");
+
+  partner.get("/partner/v1/matches", async () => listMatches());
+
+  partner.get<{ Params: { id: string }; Querystring: { lang?: Language } }>("/partner/v1/matches/:id/moments", { schema: { querystring: LANG_QUERY } }, async (request, reply) => {
+    if (!getDataset(request.params.id)) return reply.code(404).send({ error: "Match not found." });
+    const moments = await localizeMoments(await publishedMoments(request.params.id), langOf(request, request.query.lang));
+    return { matchId: request.params.id, moments: moments.map(absolutize) };
+  });
+
+  partner.get<{ Params: { id: string }; Querystring: { length?: RecapLength; lang?: Language } }>(
+    "/partner/v1/matches/:id/recap",
+    {
+      schema: {
+        querystring: {
+          type: "object",
+          additionalProperties: false,
+          properties: { length: { type: "integer", enum: [...RECAP_LENGTHS] }, lang: { type: "string", enum: Object.keys(LANGUAGES) } },
+        },
+      },
+    },
+    async (request, reply) => {
+      const recap = await recapFor(request.params.id, request.query.length ?? 30, langOf(request, request.query.lang));
+      if (!recap) return reply.code(404).send({ error: "Match not found." });
+      return { ...recap, segments: recap.segments.map((s) => ({ ...s, media: absoluteMedia(s.media) })) };
+    },
+  );
+});
+
+declare module "fastify" {
+  interface FastifyRequest {
+    partnerLanguage: string;
+  }
+}
 
 // Recover analyses interrupted by a restart. The row itself is the durable job record; attempts are visible
 // in /media/:id/status and the admin media list.

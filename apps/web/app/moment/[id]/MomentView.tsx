@@ -6,6 +6,7 @@ import type { MatchDetail } from "@inside/types";
 import { Icon } from "@/components/Icon";
 import { Back } from "@/components/Bits";
 import { Loading, Problem, SourceNote } from "@/components/LiveBits";
+import { TacticsCard } from "@/components/Tactics";
 import { minuteText, momentOf, useApi } from "@/lib/live";
 
 export function MomentView() {
@@ -36,6 +37,7 @@ export function MomentView() {
               <p style={{ marginTop: 8, fontSize: 18, lineHeight: 1.35, fontWeight: 600 }}>{m.summary}</p>
               <p className="small" style={{ color: "var(--ink)", marginTop: 6 }}>{f.home.name} {f.score ? `${f.score[0]}–${f.score[1]}` : ""} {f.away.name} · {minuteText(event)}</p>
             </div>
+            {event.type === "Goal" && <TacticsCard matchId={fixtureId} eventId={event.id} />}
             <div className="card y">
               <div className="h3">Were you there?</div>
               <p style={{ fontWeight: 600, marginTop: 4 }}>Clips filmed within 10 seconds of {minuteText(event)} join this Moment as new angles.</p>

@@ -275,3 +275,20 @@ model Reaction {
   @@unique([momentId, userId])
   @@map("reactions")
 }
+
+// Studios and streaming platforms that pull Moments through /partner/v1 and receive signed webhooks.
+model Partner {
+  id            String   @id @default(cuid())
+  name          String
+  // SHA-256 of the API key; the key itself is shown once when the partner is created.
+  keyHash       String   @unique @map("key_hash")
+  webhookUrl    String?  @map("webhook_url")
+  webhookSecret String?  @map("webhook_secret")
+  // Default language for this partner's Moments and webhooks.
+  language      String   @default("en")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  lastUsedAt    DateTime? @map("last_used_at")
+
+  @@map("partners")
+}

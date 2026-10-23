@@ -1,0 +1,69 @@
+<!doctype html>
+<!-- Roar live-Moments widget for studios and streaming partners: <iframe src="/widget.html?match=rl-01&lang=fr">.
+     Plain HTML on the public fan API, like glasses.html. Titles are AI-written, so they are inserted as text only. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Roar live Moments</title>
+  <style>
+    :root { --ink: #3A0648; --paper: #FFFFFF; --orange: #F15326; --yellow: #FEB703; --green: #82BA03; --blue: #00A6ED; --tint: rgba(58, 6, 72, 0.06); }
+    * { box-sizing: border-box; margin: 0; }
+    body { background: var(--paper); color: var(--ink); font: 500 15px/1.4 system-ui, sans-serif; padding: 12px; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--ink); color: var(--paper); border-radius: 16px; padding: 10px 14px; }
+    header b { font-size: 18px; }
+    .live { background: var(--orange); color: var(--ink); border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 800; text-transform: uppercase; }
+    ul { list-style: none; padding: 0; display: grid; gap: 8px; margin-top: 10px; }
+    li { display: grid; grid-template-columns: 64px 1fr; gap: 10px; background: var(--tint); border-radius: 14px; padding: 8px; }
+    .thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--ink); object-fit: cover; }
+    .tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+    .t { font-weight: 700; }
+    .d { font-size: 13px; opacity: .8; }
+    footer { margin-top: 10px; font-size: 12px; opacity: .7; }
+    footer a { color: inherit; }
+  </style>
+</head>
+<body>
+  <header><b id="score">Roar</b><span id="status" class="live" hidden>Live</span></header>
+  <ul id="feed" aria-live="polite"></ul>
+  <footer>Crowd Moments by <a href="/" target="_blank" rel="noopener">Roar</a> · synthetic Roar League data</footer>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const match = params.get("match") || "rl-01";
+    const lang = /^(en|fr|es|pt|de|ar)$/.test(params.get("lang") || "") ? params.get("lang") : "en";
+    document.documentElement.lang = lang;
+    if (lang === "ar") document.documentElement.dir = "rtl";
+    const ACCENT = { GOAL: "--yellow", CELEBRATION: "--green", CROWD: "--blue", PLAYER: "--yellow", FOUL: "--orange", OTHER: "--blue" };
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+    async function refresh() {
+      try {
+        const [detail, moments] = await Promise.all([
+          fetch(`/api/matches/${encodeURIComponent(match)}`).then((r) => r.json()),
+          fetch(`/api/matches/${encodeURIComponent(match)}/moments${lang === "en" ? "" : `?lang=${lang}`}`).then((r) => r.json()),
+        ]);
+        const f = detail.fixture;
+        document.getElementById("score").textContent = `${f.home.short} ${f.score ? `${f.score[0]}–${f.score[1]}` : "v"} ${f.away.short}${f.minute != null ? ` · ${f.minute}'` : ""}`;
+        document.getElementById("status").hidden = f.status !== "LIVE";
+        const rows = moments.moments.slice(0, 6).map((m) => {
+          const li = el("li");
+          const img = m.media?.type === "PHOTO" ? Object.assign(el("img", "thumb"), { src: m.media.url, alt: "" }) : el("div", "thumb");
+          const body = el("div");
+          const tag = el("div", "tag", `${m.kind}${m.minute != null ? ` · ${m.minute}'` : ""}`);
+          tag.style.color = "var(--ink)";
+          tag.style.borderInlineStart = `4px solid var(${ACCENT[m.kind] || "--blue"})`;
+          tag.style.paddingInlineStart = "6px";
+          body.append(tag, el("div", "t", m.title), el("div", "d", m.description));
+          li.append(img, body);
+          return li;
+        });
+        document.getElementById("feed").replaceChildren(...(rows.length ? rows : [el("li", "d", "No crowd Moments yet.")]));
+      } catch {
+        // keep the last good state
+      }
+    }
+    refresh();
+    setInterval(refresh, 30000);
+  </script>
+</body>
+</html>

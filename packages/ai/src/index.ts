@@ -282,3 +282,63 @@ Correct the fan's chosen type if the description clearly says otherwise. Several
     SafetyAssessment,
   );
 }
+
+// ---- Languages: fans worldwide read and hear Roar in their own language ----
+
+export const LANGUAGES = { en: "English", fr: "French", es: "Spanish", pt: "Portuguese", de: "German", ar: "Arabic" } as const;
+export type Language = keyof typeof LANGUAGES;
+export const isLanguage = (value: unknown): value is Language => typeof value === "string" && value in LANGUAGES;
+
+const Translation = z.object({ texts: z.array(z.string()).describe("Translations in the same order as the input") });
+
+/** Translator: feed text into the fan's language. Returns null when AI is off or the output is unusable. */
+export async function translateTexts(texts: string[], lang: Language): Promise<string[] | null> {
+  if (lang === "en" || texts.length === 0) return texts;
+  const out = await ask(
+    `You are Roar's Translator. You translate football feed text for fans into ${LANGUAGES[lang]}. ${LEAGUE}
+Keep player, club and stadium names exactly as written. Keep it natural for fans, not literal. Keep scores and minutes unchanged. Return one translation per input, in order.`,
+    [{ type: "text", text: JSON.stringify(texts) }],
+    Translation,
+  );
+  return out && out.texts.length === texts.length ? out.texts : null;
+}
+
+// ---- Tactics Analyst: why a goal worked, from the event data ----
+
+export const TacticsExplanation = z.object({
+  headline: z.string().describe("Why it worked, max 70 characters"),
+  points: z.array(z.string()).describe("3 or 4 short explanation points, each max 160 characters"),
+});
+
+export type Depth = "beginner" | "expert";
+
+export function explainTactics(input: { match: MatchContext; facts: string[]; depth: Depth; lang: Language }) {
+  return ask(
+    `You are Roar's Tactics Analyst. You explain why a goal happened using only the event-data facts given. ${LEAGUE}
+${input.depth === "beginner"
+  ? "The reader is new to football: no jargon, explain any term you need in plain words."
+  : "The reader knows the game: use precise tactical language (progression, third-man runs, pressing triggers, half-spaces, xG) where the facts support it."}
+Never invent players, passes or numbers that are not in the facts. Write in ${LANGUAGES[input.lang]}.`,
+    [{ type: "text", text: `${context(input.match)}\nEvent-data facts about the build-up:\n${input.facts.map((f) => `- ${f}`).join("\n")}` }],
+    TacticsExplanation,
+  );
+}
+
+// ---- Recap Writer: narration for a 15/30/60s multi-angle recap ----
+
+export const RecapScript = z.object({
+  headline: z.string().describe("Recap title, max 60 characters"),
+  lines: z.array(z.string()).describe("One narration line per segment, in order; each speakable in the segment's seconds"),
+});
+
+export function writeRecap(input: { match: MatchContext; seconds: number; segments: { minute: number | null; seconds: number; what: string }[]; lang: Language }) {
+  return ask(
+    `You are Roar's Recap Writer. You narrate a ${input.seconds}-second highlight recap built from fans' angles in the stadium. ${LEAGUE}
+Write exactly one line per segment. Each line must be short enough to read aloud in its segment's seconds (about 2.5 words per second). Energetic, factual, no invented events. Write in ${LANGUAGES[input.lang]}.`,
+    [{
+      type: "text",
+      text: `${context(input.match)}\nSegments:\n${input.segments.map((s, i) => `${i + 1}. ${s.minute ?? "?"}' (${s.seconds}s) ${s.what}`).join("\n")}`,
+    }],
+    RecapScript,
+  );
+}

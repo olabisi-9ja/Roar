@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { Icon, type IconName } from "./Icon";
+import { LangPicker } from "./LangPicker";
 import { me } from "@/lib/data";
 
 const ITEMS: { href: string; label: string; sub: string; icon: IconName }[] = [
   { href: "/home", label: "Match centre", sub: "Score, latest moments, games", icon: "home" },
   { href: "/stats", label: "Live stats", sub: "Possession, shots, timeline", icon: "stats" },
+  { href: "/recap", label: "Recap", sub: "15, 30 or 60 seconds from the fans' angles", icon: "go" },
   { href: "/matches", label: "Change match", sub: "Roar League fixtures", icon: "search" },
   { href: "/me", label: "My profile", sub: "Captures, crowns, settings", icon: "user" },
 ];
@@ -34,6 +36,7 @@ export function MenuButton({ light = false }: { light?: boolean }) {
               <Icon name="chev" size="s" />
             </Link>
           ))}
+          <LangPicker />
           <Link href="/sos" className="pill full o" onClick={close} style={{ marginTop: 12 }}>SOS · Get help in the stadium</Link>
         </div>
       </dialog>

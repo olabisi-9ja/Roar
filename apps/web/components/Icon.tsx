@@ -19,10 +19,13 @@ const PATHS: Record<string, React.ReactNode> = {
   flag: <path d="M5 21V4h11l-2 4 2 4H5" />,
   search: (<><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>),
   stats: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
+  sound: (<><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></>),
+  mute: (<><path d="M4 9h4l5-4v14l-5-4H4z" /><path d="M17 9.5l5 5M22 9.5l-5 5" /></>),
 };
 
 const FILLED: Record<string, React.ReactNode> = {
   crown: <path d="M3 7l5 4 4-6 4 6 5-4-2 11H5z" />,
+  go: <path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z" />,
   ai: (<><path d="M12 2l2.1 6.1L20 10l-5.9 1.9L12 18l-2.1-6.1L4 10l5.9-1.9z" /><path d="M19 15l.9 2.4L22 18l-2.1.6L19 21l-.9-2.4L16 18l2.1-.6z" /></>),
 };
 

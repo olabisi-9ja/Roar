@@ -13,6 +13,20 @@ Screen numbers refer to [design/roar-app-design.html](design/roar-app-design.htm
 | Insights for fans worldwide in multiple languages | Summaries, match story, captions and recaps in the fan's language, with text and audio versions. | 2.5, 9.3, 10.2 | Azure AI Translator, Azure AI Speech, Foundry |
 | Personalized experiences for studios, streaming platforms and fans | Fans get a feed tuned to their team, players, language and explanation depth. Studios and streaming platforms get a partner console: Moments API, recap webhooks and an embeddable live-Moments widget, filtered to their rights and languages. | 9.3, 10.2, 10.3 | API Management, Foundry, Azure AI Search (Moment search), Fabric |
 
+## Built today (2026-10-23)
+
+| Objective | Status |
+| --- | --- |
+| Real-time analysis | Built: Moment Analyst, Matcher, Curator on Foundry |
+| Stories, highlights, recaps | Built: Storyteller titles; 15/30/60s recaps (`/recap`) with Recap Writer narration. Recaps are a playlist of fan angles, not a rendered video file |
+| Tactical explanations | Built: "Why it worked" on goal Moments, Simple/Expert depth, from event-data facts |
+| Datasets | Partly: labelled media in PostgreSQL and the synthetic dataset export. Fabric/OneLake not built |
+| Multiple languages | Built: en/fr/es/pt/de/ar via the Translator agent; audio through the browser's speech engine (not Azure AI Speech) |
+| Studios and streaming platforms | Built: partner API keys, `/partner/v1`, signed `moment.published` webhooks, embeddable widget, admin Partners page |
+
+Not built: Fabric, Azure AI Speech/Translator services (the Foundry model does the translation), API
+Management, Web PubSub (the apps poll every 15 s).
+
 ## Supporting services
 
 - **Safety layer:** Foundry Safety Analyst and Security Coordinator agents, Azure AI Content Safety for moderation suggestions (5.x, 9.1, 9.2, 9.4).

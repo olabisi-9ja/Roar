@@ -221,6 +221,14 @@ az containerapp revision restart -g rg-roar-app -n ca-api --revision <name>
 | `apps/api/Dockerfile`, `apps/web/Dockerfile`, `apps/admin/Dockerfile`, `.dockerignore` | Images |
 | `.github/workflows/ci.yml` | CI: install → generate → typecheck → tests → lint → builds |
 
+## Demo features added 2026-10-23 (not yet deployed)
+
+Translator, Tactics Analyst and Recap Writer agents; `/recap`, the "Why it worked" card, a language
+picker in the fan app menu, partner API keys with signed webhooks, `/widget.html`, and the admin
+Partners page. Routes in [API.md](API.md). New migration `20261023120000_partners`: run
+`migrate:deploy` against Azure before rolling out the new API image. Set `PUBLIC_WEB_URL` on `ca-api` to
+the `ca-web` URL so partner media links are absolute.
+
 ## Known gaps / sensible next steps
 
 From `audit/REMEDIATION_STATUS.md` → “Still blocking production”:

@@ -43,6 +43,7 @@ export default function Home() {
         <div style={{ display: "flex", gap: 12, overflowX: "auto", margin: "0 -22px", padding: "0 22px" }}>
           <Link className="card y" href="/play/call-it" style={{ flex: "none", width: 170, height: 140, padding: 16 }}><span className="tag w">Live</span><div className="d4" style={{ marginTop: 10 }}>Call It</div><p className="small" style={{ color: "var(--ink)" }}>Predict the next goal</p></Link>
           <Link className="card g" href="/play/quiz" style={{ flex: "none", width: 170, height: 140, padding: 16 }}><span className="tag w">Quiz</span><div className="d4" style={{ marginTop: 10 }}>Match Quiz</div><p className="small" style={{ color: "var(--ink)" }}>Test what you saw</p></Link>
+          <Link className="card o" href="/recap" style={{ flex: "none", width: 170, height: 140, padding: 16 }}><span className="tag w">AI</span><div className="d4" style={{ marginTop: 10 }}>Recap</div><p className="small" style={{ color: "var(--ink)" }}>15, 30 or 60 seconds</p></Link>
           <Link className="card b" href="/stats" style={{ flex: "none", width: 170, height: 140, padding: 16 }}><span className="tag w">Live</span><div className="d4" style={{ marginTop: 10 }}>Stats</div><p className="small" style={{ color: "var(--ink)" }}>Real match numbers</p></Link>
         </div>
 

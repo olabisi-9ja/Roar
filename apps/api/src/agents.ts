@@ -34,7 +34,7 @@ async function setAiStatus(mediaId: string, status: "RUNNING" | "SUCCEEDED" | "F
   });
 }
 
-async function matchContext(matchId: string): Promise<MatchContext | null> {
+export async function matchContext(matchId: string): Promise<MatchContext | null> {
   const d = await getMatch(matchId);
   if (!d) return null;
   const f = d.fixture;
