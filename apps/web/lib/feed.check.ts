@@ -16,4 +16,9 @@ assert.deepEqual(ids(rankFeed([ev("g90", 90)], [cm("nominute", null)])), ["nomin
 assert.deepEqual(ids(rankFeed([ev("g90", 90), ev("g90+3", 90, 3)], [])), ["g90+3", "g90"], "stoppage time after 90'");
 assert.deepEqual(rankFeed([], []), []);
 
+const clip = (id: string, minute: number): CuratedMoment => ({ ...cm(id, minute), kind: "CELEBRATION", media: { id, url: "", type: "VIDEO" } });
+const withAngle = rankFeed([ev("g61", 61)], [clip("stands62", 62), clip("late70", 70)]);
+assert.deepEqual(ids(withAngle), ["late70", "g61"], "a fan clip right after a goal becomes that goal's background");
+assert.equal(withAngle[1]?.kind === "event" ? withAngle[1].angle?.id : null, "stands62");
+
 console.log("For You ranking: all checks passed");

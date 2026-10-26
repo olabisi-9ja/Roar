@@ -25,14 +25,14 @@ module.exports.sos = async (p, c) => {
   const b = p.getByRole('button', { name: /Hold for 2 seconds/ }); const box = await b.boundingBox();
   await p.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await p.mouse.down(); await wait(p, 2600); await p.mouse.up();
   await p.getByText("What's happening?").waitFor(); await wait(p, 900);
-  await p.getByRole('radio', { name: 'Crowding' }).click(); await wait(p, 500);
+  await p.getByRole('radio', { name: 'Medical' }).click(); await wait(p, 500);
   await p.getByLabel('Your section').pressSequentially('112', { delay: 120 }); await p.getByLabel('Your row').pressSequentially('14', { delay: 120 });
-  await p.getByPlaceholder(/Describe/).pressSequentially('Crush at the front by gate C, people falling', { delay: 45 }); await wait(p, 700);
+  await p.getByPlaceholder(/Describe/).pressSequentially('Man collapsed in row 14, not responding', { delay: 45 }); await wait(p, 700);
   await p.getByRole('button', { name: 'Send report' }).click(); await wait(p, 4000); c.stop();
   c.log(await p.evaluate(() => document.body.innerText.slice(0, 300)));
 };
 module.exports.feed = async (p, c) => {
-  await enter(p, '/live'); await wait(p, 2500); c.start(); await wait(p, 2500);
+  await enter(p, '/live'); await p.waitForSelector('.feed video', { timeout: 30000 }); await wait(p, 3000); c.start(); await wait(p, 3500);
   for (let i = 0; i < 3; i++) { await p.evaluate(async () => { const s = document.querySelector('.feed'); if (s) s.scrollBy({ top: s.clientHeight, behavior: 'smooth' }); }); await wait(p, 3000); }
   c.stop();
 };
@@ -44,6 +44,7 @@ module.exports.adminCurate = async (p, c) => {
   await pub.scrollIntoViewIfNeeded(); await wait(p, 600); await pub.hover(); await wait(p, 600); await pub.click(); await wait(p, 3500); await smoothScroll(p, 700, 1500); await wait(p, 2000); c.stop();
 };
 module.exports.adminIncidents = async (p, c) => {
-  await p.goto(A + '/incidents', { waitUntil: 'networkidle', timeout: 90000 }); await wait(p, 1500); c.start(); await wait(p, 3000);
-  const b = p.getByRole('button', { name: 'Mark assigned' }).first(); await b.hover(); await wait(p, 700); await b.click(); await wait(p, 3000); c.stop();
+  await p.goto(A + '/incidents?status=OPEN', { waitUntil: 'networkidle', timeout: 90000 }); await wait(p, 1500); c.start(); await wait(p, 3000);
+  const b = p.locator('article', { hasText: 'Man collapsed' }).getByRole('button', { name: 'Mark assigned' }); await b.hover(); await wait(p, 700); await b.click(); await wait(p, 3000); c.stop();
 };
+module.exports.liveProbe = async (p, c) => { await enter(p, '/live'); await wait(p, 6000); c.log(await p.evaluate(() => [...document.querySelectorAll('.feed > section')].map(s => s.getAttribute('aria-label')).join(' | '))); };

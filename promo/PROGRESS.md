@@ -42,6 +42,9 @@ Stock sources: Mixkit (`https://assets.mixkit.co/videos/<id>/<id>-720.mp4`) and 
 - [x] Admin console redesign (dark "control room": sidebar, overview stats, AI drafts with video, severity-coded incidents)
 - [x] Fan app fix: analysing screen shows the clip instead of an empty box
 - [x] Capture flow verified end to end with the live AI (about 14 s to a Moment draft)
-- [ ] Record: capture (goal clip after 61'), admin curate + publish, feed, SOS, admin incidents
+- [x] Fan feed fix: goal slides play the fan clip filmed within 3 minutes ("Fan angle"); empty slides show a big minute marker
+- [x] Recorded (in `promo/footage/app/`): `cap_crowd.mp4` (AI: "Section C erupts after Okoro's 61' strike", celebration 85%),
+      `cap_penalty.mp4`, `adm_curate.mp4` (publish), `feed.mp4`, `sos.mp4` (medical), `adm_inc.mp4` (critical incident on top), `adm_over.mp4`
+- Live data note: test incidents filed during recording were resolved; the owner's "Cloud E2E smoke test" incident was left OPEN as found.
 - [ ] Edit in Remotion, grade, music + SFX, render 1080p MP4 under 80 s
 - [ ] Owner uploads to YouTube; redeploy web + admin images (see docs/HANDOFF.md) so the live site matches the video

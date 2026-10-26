@@ -176,6 +176,7 @@ p { margin: 0; }
 .feed { height: 100dvh; overflow-y: auto; scroll-snap-type: y mandatory; background: var(--ink); }
 .feed > section { position: relative; height: 100dvh; scroll-snap-align: start; }
 .feed .vid { position: absolute; inset: 0; border-radius: 0; }
+.feed .evmark { position: absolute; left: 0; right: 0; top: 18%; text-align: center; font: 180px/1 var(--display); color: rgba(255, 255, 255, 0.07); letter-spacing: -0.02em; }
 
 /* Camera */
 .cam { position: relative; height: 100dvh; background: var(--ink); color: var(--paper); overflow: hidden; }

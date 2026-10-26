@@ -65,15 +65,27 @@ function CuratedSlide({ m }: { m: CuratedMoment }) {
   );
 }
 
-function EventSlide({ e, f }: { e: MatchEvent; f: Fixture }) {
+function EventSlide({ e, f, angle }: { e: MatchEvent; f: Fixture; angle?: CuratedMoment }) {
   const m = momentOf(e, f);
   return (
     <>
-      <div className="vid" />
+      {angle?.media ? (
+        <>
+          {angle.media.type === "VIDEO"
+            ? <video className="media" src={angle.media.url} autoPlay muted loop playsInline aria-label={angle.title} />
+            : <img className="media" src={angle.media.url} alt={angle.title} />}
+          <div className="scrim" />
+        </>
+      ) : (
+        <div className="vid"><span className="evmark" aria-hidden="true">{minuteText(e)}</span></div>
+      )}
       <Link href={`/moment/${e.id}`} style={{ position: "absolute", left: 18, right: 80, bottom: 120, color: "var(--paper)", zIndex: 2 }}>
-        <span className={`tag ${m.accent}`}>{m.label} · {minuteText(e)}</span>
+        <div className="flex" style={{ flexWrap: "wrap" }}>
+          <span className={`tag ${m.accent}`}>{m.label} · {minuteText(e)}</span>
+          {angle && <span className="tag w"><Icon name="cam" size="s" />Fan angle</span>}
+        </div>
         <div className="d2" style={{ marginTop: 10 }}>{m.title}</div>
-        <p style={{ marginTop: 8, fontSize: 15 }}>{m.summary}</p>
+        <p style={{ marginTop: 8, fontSize: 15 }}>{angle ? angle.title : m.summary}</p>
         <p className="lab" style={{ marginTop: 8, color: "var(--paper)" }}>Tap for details · swipe up for more</p>
       </Link>
     </>
@@ -105,7 +117,7 @@ export default function ForYou() {
 
         {f && items.map((item, i) => (
           <section key={item.kind === "event" ? item.e.id : item.m.id} aria-label={item.kind === "event" ? momentOf(item.e, f).title : item.m.title}>
-            {item.kind === "event" ? <EventSlide e={item.e} f={f} /> : <CuratedSlide m={item.m} />}
+            {item.kind === "event" ? <EventSlide e={item.e} f={f} angle={item.angle} /> : <CuratedSlide m={item.m} />}
             <Header f={f} />
             {i === 0 && f.status === "LIVE" && <div style={{ position: "absolute", top: 64, left: 0, right: 0, zIndex: 3 }}><CallItCard fixture={f} /></div>}
             <Rail />
