@@ -46,6 +46,6 @@ Stock sources: Mixkit (`https://assets.mixkit.co/videos/<id>/<id>-720.mp4`) and 
 - [x] Recorded (in `promo/footage/app/`): `cap_crowd.mp4` (AI: "Section C erupts after Okoro's 61' strike", celebration 85%),
       `cap_penalty.mp4`, `adm_curate.mp4` (publish), `feed.mp4`, `sos.mp4` (medical), `adm_inc.mp4` (critical incident on top), `adm_over.mp4`
 - Live data note: test incidents filed during recording were resolved; the owner's "Cloud E2E smoke test" incident was left OPEN as found.
-- [x] Edit written in Remotion (`promo/edit/`), first full render in progress
-- [ ] Review the cut, adjust, final render
+- [x] Edit in Remotion (`promo/edit/`), rendered: `promo/roar-promo.mp4` (80 s, 1080p, compressed copy; full-quality render is 85 MB)
+- [x] Logo check: broadcast camera shot cropped to hide its brand badge
 - [ ] Owner uploads to YouTube; redeploy web + admin images (see docs/HANDOFF.md) so the live site matches the video
