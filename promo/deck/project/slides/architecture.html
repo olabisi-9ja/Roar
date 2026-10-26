@@ -1,0 +1,29 @@
+<section id="architecture" data-transition="fade" style="background:#F7F3EE;color:#3A0648;font-family:'Barlow', Arial, sans-serif;padding:96px 128px 160px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<p style="font-family:'Barlow Condensed', Arial, sans-serif;font-weight:800;font-size:28px;letter-spacing:5px;text-transform:uppercase;color:#C2410C">Architecture</p>
+<h2 style="font-family:'Anton', Impact, sans-serif;font-weight:400;font-size:72px;line-height:1.05;text-transform:uppercase">Built on Azure, live today</h2>
+</div>
+<div style="display:flex;gap:28px;align-items:center">
+<div style="width:380px;display:flex;flex-direction:column;gap:20px">
+<p style="font-family:'Barlow Condensed', Arial, sans-serif;font-weight:800;font-size:26px;letter-spacing:3px;text-transform:uppercase;color:#6B5A75">In the stadium</p>
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border:2px solid #E4DAE8"><h3 style="font-size:32px;font-weight:700">Fan phone</h3><p style="font-size:24px;color:#5B4A66">Web app (PWA) and Expo app</p></div>
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border:2px solid #E4DAE8"><h3 style="font-size:32px;font-weight:700">Smart glasses</h3><p style="font-size:24px;color:#5B4A66">Camera capture and heads-up score</p></div>
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border:2px solid #E4DAE8"><h3 style="font-size:32px;font-weight:700">Control room</h3><p style="font-size:24px;color:#5B4A66">Moderators and security</p></div>
+</div>
+<x-shape kind="arrow-right" style="width:64px;height:32px;background:#3A0648"></x-shape>
+<div style="flex:1;display:flex;flex-direction:column;gap:20px;background:#3A0648;color:#F7F3EE;padding:32px;border-radius:28px">
+<p style="font-family:'Barlow Condensed', Arial, sans-serif;font-weight:800;font-size:26px;letter-spacing:3px;text-transform:uppercase;color:#FEB703">Azure Container Apps</p>
+<div style="background:rgba(255,255,255,0.08);padding:20px 24px;border-radius:16px"><h3 style="font-size:32px;font-weight:700">Roar API</h3><p style="font-size:24px;color:#E6DCEB">Fastify + Prisma · uploads, Moments, SOS, live replay</p></div>
+<div style="background:rgba(255,255,255,0.08);padding:20px 24px;border-radius:16px"><h3 style="font-size:32px;font-weight:700">Fan web app</h3><p style="font-size:24px;color:#E6DCEB">Next.js</p></div>
+<div style="background:rgba(255,255,255,0.08);padding:20px 24px;border-radius:16px"><h3 style="font-size:32px;font-weight:700">Control room console</h3><p style="font-size:24px;color:#E6DCEB">Next.js · behind sign-in</p></div>
+</div>
+<x-shape kind="arrow-right" style="width:64px;height:32px;background:#3A0648"></x-shape>
+<div style="width:440px;display:flex;flex-direction:column;gap:20px">
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border-left:8px solid #FEB703"><h3 style="font-size:32px;font-weight:700">Microsoft Foundry</h3><p style="font-size:24px;color:#5B4A66">Azure OpenAI · gpt-5-mini · 5 agents</p></div>
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border-left:8px solid #00A6ED"><h3 style="font-size:32px;font-weight:700">Azure Database for PostgreSQL</h3><p style="font-size:24px;color:#5B4A66">Matches, media, Moments, incidents</p></div>
+<div style="background:#FFFFFF;padding:24px 28px;border-radius:20px;border-left:8px solid #82BA03"><h3 style="font-size:32px;font-weight:700">Azure Blob Storage</h3><p style="font-size:24px;color:#5B4A66">Private · managed identity, no keys</p></div>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#6B5A75">Also: Azure Container Registry for images, Log Analytics for logs. Match data is synthetic and replayed live (hackathon rule).</p>
+<aside>Everything runs on Azure today. Phones, glasses and the control room talk to the Roar API on Azure Container Apps, alongside the fan web app and the control room console. The API calls our agents on Microsoft Foundry, stores data in Azure Database for PostgreSQL, and keeps clips in a private Blob container that it reaches with a managed identity, so there is no storage key anywhere.</aside>
+</section>

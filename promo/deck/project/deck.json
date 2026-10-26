@@ -1,0 +1,20 @@
+{
+  "v": 4,
+  "createdOnFiles": { "v": 1, "at": "2026-10-26T18:40:00Z" },
+  "lists": "css",
+  "title": "Roar — Every fan is a camera",
+  "order": ["cover", "problem", "solution", "how", "agents", "room", "safety", "architecture", "trust", "demo", "next", "close"],
+  "sections": {
+    "s1": { "description": "Why: the stadium is full of cameras that never connect", "start": "cover" },
+    "s2": { "description": "What Roar does and how the AI works", "start": "solution" },
+    "s3": { "description": "Safety: SOS from seat to steward", "start": "safety" },
+    "s4": { "description": "Built on Azure, built to be trusted", "start": "architecture" },
+    "s5": { "description": "See it, and what comes next", "start": "demo" }
+  },
+  "faces": {
+    "anton": { "family": "Anton", "href": "https://fonts.googleapis.com/css2?family=Anton&display=swap" },
+    "barlow": { "family": "Barlow", "href": "https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&display=swap" },
+    "barlow-condensed": { "family": "Barlow Condensed", "href": "https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&display=swap" }
+  },
+  "designSystems": []
+}

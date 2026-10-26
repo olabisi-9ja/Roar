@@ -53,4 +53,5 @@ Stock sources: Mixkit (`https://assets.mixkit.co/videos/<id>/<id>-720.mp4`) and 
       "Help is on the way". New feature behind it: `GET /incidents/:id/status` (reporter only) + live status on the SOS screen.
       Recorded from this branch running locally (system Postgres, API, web, admin) with `promo/scripts/rec3.js` → `sos2_fan.mp4`, `sos2_room.mp4`.
       Ad is now 91 s; captions explain each app beat.
+- [x] Pitch deck (12 slides): https://claude.ai/artifact/EimVQC6xEcrbcgC6Si7jQ1 — source in `promo/deck/project/` (images are artifact assets). Placeholder to fill: [YouTube link] on the demo slide.
 - [ ] Owner uploads to YouTube; redeploy web + admin images (see docs/HANDOFF.md) so the live site matches the video
