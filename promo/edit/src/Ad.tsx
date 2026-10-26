@@ -159,9 +159,9 @@ const Console: React.FC<{ src: string; from: number; rate?: number; zoom: [numbe
 
 /* ---------- scenes ---------- */
 
-const Eye: React.FC<{ src: string; x: number; y: number; rec?: [number, number]; grade?: Grade }> = ({ src, x, y, rec, grade = "bw" }) => (
+const Eye: React.FC<{ src: string; x: number; y: number; rec?: [number, number]; grade?: Grade; zoom?: [number, number]; origin?: string }> = ({ src, x, y, rec, grade = "bw", zoom = [1.06, 1.14], origin }) => (
   <AbsoluteFill>
-    <Shot src={src} grade={grade} zoom={[1.06, 1.14]} />
+    <Shot src={src} grade={grade} zoom={zoom} origin={origin} />
     <Trail x={x} y={y} />
     {rec && <RecDot x={rec[0]} y={rec[1]} />}
   </AbsoluteFill>
@@ -243,7 +243,7 @@ export const Ad: React.FC = () => {
       <At k="aerial"><Fade inF={30}><Shot src="clips/aerial.mp4" grade="bw" zoom={[1.0, 1.12]} /></Fade></At>
       <At k="glasses"><Eye src="clips/glasses.mp4" x={690} y={470} rec={[120, 110]} /></At>
       <At k="phonerec"><Eye src="clips/phonerec.mp4" x={900} y={330} /></At>
-      <At k="broadcast"><Eye src="clips/broadcast.mp4" x={420} y={420} /></At>
+      <At k="broadcast"><Eye src="clips/broadcast.mp4" x={670} y={340} zoom={[2.2, 2.3]} origin="92% 40%" /></At>
       <At k="phonedark"><Eye src="clips/phonedark.mp4" x={1030} y={420} /></At>
       <At k="penalty"><Shot src="clips/penalty.mp4" grade="bw" zoom={[1.05, 1.25]} /></At>
 
