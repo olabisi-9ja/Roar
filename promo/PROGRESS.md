@@ -48,4 +48,9 @@ Stock sources: Mixkit (`https://assets.mixkit.co/videos/<id>/<id>-720.mp4`) and 
 - Live data note: test incidents filed during recording were resolved; the owner's "Cloud E2E smoke test" incident was left OPEN as found.
 - [x] Edit in Remotion (`promo/edit/`), rendered: `promo/roar-promo.mp4` (80 s, 1080p, compressed copy; full-quality render is 85 MB)
 - [x] Logo check: broadcast camera shot cropped to hide its brand badge
+- [x] v2 (owner feedback: 0:46–1:02 had no music and didn't show the response): SOS section rebuilt to 0:48–1:13 with a tense
+      music bed, captions, and the real round trip: fan sends SOS → control room acknowledges and assigns → fan's phone shows
+      "Help is on the way". New feature behind it: `GET /incidents/:id/status` (reporter only) + live status on the SOS screen.
+      Recorded from this branch running locally (system Postgres, API, web, admin) with `promo/scripts/rec3.js` → `sos2_fan.mp4`, `sos2_room.mp4`.
+      Ad is now 91 s; captions explain each app beat.
 - [ ] Owner uploads to YouTube; redeploy web + admin images (see docs/HANDOFF.md) so the live site matches the video

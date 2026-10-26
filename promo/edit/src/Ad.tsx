@@ -10,7 +10,7 @@ loadFont({ family: ANTON, url: staticFile("fonts/anton-latin-400-normal.woff2"),
 loadFont({ family: BARLOW, url: staticFile("fonts/barlow-condensed-latin-600-normal.woff2"), weight: "600" });
 loadFont({ family: BARLOW, url: staticFile("fonts/barlow-condensed-latin-800-normal.woff2"), weight: "800" });
 
-export const AD_FRAMES = 2400; // 80 s at 30 fps
+export const AD_FRAMES = 2730; // 91 s at 30 fps
 const s = (sec: number) => Math.round(sec * 30);
 const GOLD = "#FEB703";
 const INK = "#3A0648";
@@ -150,7 +150,7 @@ const Console: React.FC<{ src: string; from: number; rate?: number; zoom: [numbe
   const enter = interpolate(frame, [0, 20], [0.94, 1], { ...clamp, easing: Easing.out(Easing.cubic) });
   return (
     <AbsoluteFill style={{ alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 1600, height: 900, borderRadius: 22, overflow: "hidden", boxShadow: "0 50px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.12)", transform: `scale(${enter})`, background: "#12021A" }}>
+      <div style={{ width: 1424, height: 801, marginTop: 110, borderRadius: 22, overflow: "hidden", boxShadow: "0 50px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.12)", transform: `scale(${enter})`, background: "#12021A" }}>
         <OffthreadVideo src={staticFile(src)} startFrom={s(from)} playbackRate={rate} muted style={{ width: "100%", height: "100%", objectFit: "cover", transform: `scale(${z})`, transformOrigin: origin }} />
       </div>
     </AbsoluteFill>
@@ -221,14 +221,40 @@ const EndCard: React.FC = () => {
   );
 };
 
+/** Short on-screen line that explains the beat. */
+const Caption: React.FC<{ text: string; top?: boolean }> = ({ text, top }) => {
+  const frame = useCurrentFrame();
+  const { durationInFrames } = useVideoConfig();
+  const o = Math.min(interpolate(frame, [0, 10], [0, 1], clamp), interpolate(frame, [durationInFrames - 10, durationInFrames], [1, 0], clamp));
+  const x = interpolate(frame, [0, 14], [-24, 0], { ...clamp, easing: Easing.out(Easing.cubic) });
+  return (
+    <div style={{ position: "absolute", left: 110, ...(top ? { top: 110 } : { bottom: 120 }), display: "flex", alignItems: "center", gap: 20, opacity: o, transform: `translateX(${x}px)` }}>
+      <span style={{ width: 8, height: 64, borderRadius: 4, background: GOLD }} />
+      <span style={{ fontFamily: BARLOW, fontWeight: 800, fontSize: 52, color: "#fff", letterSpacing: 1, textTransform: "uppercase", textShadow: "0 4px 24px rgba(0,0,0,.7)" }}>{text}</span>
+    </div>
+  );
+};
+
 /* ---------- timeline ---------- */
 
 const T = {
   aerial: [0, 150], glasses: [150, 60], phonerec: [210, 60], broadcast: [270, 60], phonedark: [330, 60], penalty: [390, 60],
   crowd: [450, 90], split: [540, 120], capture: [660, 240], admin: [900, 120], bus: [1020, 90], feed: [1110, 180], manphone: [1290, 150],
-  arena: [1440, 90], sos: [1530, 180], incident: [1710, 90], police: [1800, 30], lights: [1830, 30],
-  homefan: [1860, 120], family: [1980, 90], crowdwide: [2070, 90], end: [2160, 240],
+  arena: [1440, 75], sos: [1515, 210], room: [1725, 180], steward: [1905, 90], police: [1995, 60], bluelight: [2055, 45], helped: [2100, 90],
+  homefan: [2190, 120], family: [2310, 90], crowdwide: [2400, 90], end: [2490, 240],
 } as const;
+
+const CAPTIONS: [number, number, string, boolean?][] = [
+  [690, 190, "Fans film from their seats"],
+  [905, 105, "AI drafts the moment. The control room publishes it.", true],
+  [1130, 150, "Fans anywhere relive it from every angle"],
+  [1450, 62, "Section 112. A fan collapses."],
+  [1530, 185, "One hold sends an SOS with the exact seat"],
+  [1735, 160, "The control room sees it instantly", true],
+  [1910, 80, "The nearest steward is sent"],
+  [2000, 95, "Help moves in"],
+  [2105, 80, "And the fan knows help is on the way"],
+];
 
 const At: React.FC<{ k: keyof typeof T; children: React.ReactNode }> = ({ k, children }) => (
   <Sequence from={T[k][0]} durationInFrames={T[k][1]}>{children}</Sequence>
@@ -254,7 +280,7 @@ export const Ad: React.FC = () => {
       {/* 22–34 s: the real product */}
       <At k="capture">
         <PhoneOver bg="clips/crowd.mp4" bgFrom={s(3)}>
-          <Phone src="app/cap_crowd.mp4" segs={[{ from: 0.3, dur: 105 }, { from: 9.5, dur: 45 }, { from: 21.6, dur: 90 }]} />
+          <Phone src="app/cap_crowd.mp4" x={1300} segs={[{ from: 0.3, dur: 105 }, { from: 9.5, dur: 45 }, { from: 21.6, dur: 90 }]} />
         </PhoneOver>
       </At>
       <At k="admin">
@@ -267,50 +293,61 @@ export const Ad: React.FC = () => {
       <At k="bus"><Shot src="clips/bus.mp4" grade="warm" zoom={[1.05, 1.15]} origin="45% 60%" /></At>
       <At k="feed">
         <PhoneOver bg="clips/busbg.mp4" bgGrade="warm">
-          <Phone src="app/feed.mp4" segs={[{ from: 0, dur: 180 }]} />
+          <Phone src="app/feed.mp4" x={1300} segs={[{ from: 0, dur: 180 }]} />
         </PhoneOver>
       </At>
       <At k="manphone"><Fade outF={15}><Shot src="clips/manphone.mp4" grade="warm" zoom={[1.04, 1.12]} /></Fade></At>
 
-      {/* 48–62 s: someone needs help */}
+      {/* 48–73 s: someone needs help, and gets it */}
       <At k="arena"><Fade inF={20}><Shot src="clips/arena.mp4" grade="night" rate={0.6} from={s(2)} zoom={[1.1, 1.2]} /></Fade></At>
       <At k="sos">
         <PhoneOver bg="clips/arena.mp4" bgGrade="night" bgFrom={s(4)}>
-          <Phone src="app/sos.mp4" segs={[{ from: 0.6, dur: 75, rate: 1.4 }, { from: 4.2, dur: 60, rate: 2.2 }, { from: 10.6, dur: 45 }]} />
+          <Phone src="app/sos2_fan.mp4" x={1300} segs={[{ from: 0.3, dur: 81 }, { from: 3.0, dur: 80, rate: 2 }, { from: 8.4, dur: 49 }]} />
         </PhoneOver>
       </At>
-      <At k="incident">
+      <At k="room">
         <PhoneOver bg="clips/lights.mp4" bgGrade="night">
-          <Console src="app/adm_inc.mp4" from={0.2} zoom={[1.0, 1.35]} origin="62% 55%" />
+          <Console src="app/sos2_room.mp4" from={0.4} rate={1.2} zoom={[1.1, 1.5]} origin="50% 72%" />
         </PhoneOver>
       </At>
+      <At k="steward"><Shot src="clips/steward.mp4" grade="night" zoom={[1.15, 1.25]} origin="50% 35%" /></At>
       <At k="police"><Shot src="clips/police.mp4" grade="night" zoom={[1.1, 1.18]} /></At>
-      <At k="lights"><Shot src="clips/lights.mp4" grade="night" zoom={[1.0, 1.1]} /></At>
+      <At k="bluelight"><Shot src="clips/bluelight.mp4" grade="color" zoom={[1.45, 1.55]} origin="70% 50%" /></At>
+      <At k="helped">
+        <PhoneOver bg="clips/arena.mp4" bgGrade="night" bgFrom={s(5)}>
+          <Phone src="app/sos2_fan.mp4" x={1300} segs={[{ from: 13.6, dur: 30 }, { from: 17.0, dur: 60 }]} />
+        </PhoneOver>
+      </At>
 
-      {/* 62–72 s: release */}
+      {/* 73–83 s: release */}
       <At k="homefan"><Shot src="clips/homefan.mp4" grade="warm" zoom={[1.05, 1.12]} /><Flash len={6} /></At>
       <At k="family"><Shot src="clips/family.mp4" grade="warm" zoom={[1.04, 1.1]} /></At>
       <At k="crowdwide"><Fade outF={12}><Shot src="clips/crowdwide.mp4" grade="color" zoom={[1.02, 1.12]} /></Fade></At>
 
       {frame < T.end[0] && (<><Vignette /><Grain /><Letterbox /></>)}
+      {CAPTIONS.map(([from, dur, text, top]) => <Sequence key={from} from={from} durationInFrames={dur}><Caption text={text} top={top} /></Sequence>)}
       <At k="end"><EndCard /></At>
 
       {/* ---------- sound ---------- */}
-      <Sequence from={0} durationInFrames={1440}>
-        <Audio src={staticFile("audio/music.mp3")} startFrom={s(57.5)} volume={vol([0, 60, 1380, 1440], [0, 0.85, 0.85, 0])} />
+      <Sequence from={0} durationInFrames={1460}>
+        <Audio src={staticFile("audio/music.mp3")} startFrom={s(57.5)} volume={vol([0, 60, 1380, 1460], [0, 0.85, 0.85, 0.2])} />
       </Sequence>
-      <Sequence from={1860} durationInFrames={540}>
+      {/* Tense bed under the SOS story: the track's quiet build, low, with a heartbeat. */}
+      <Sequence from={1420} durationInFrames={775}>
+        <Audio src={staticFile("audio/music.mp3")} startFrom={s(20)} volume={vol([0, 60, 700, 775], [0, 0.5, 0.6, 0])} />
+      </Sequence>
+      <Sequence from={1420} durationInFrames={775}><Audio src={staticFile("audio/sfx_494.mp3")} volume={vol([0, 30, 700, 775], [0, 0.55, 0.55, 0])} /></Sequence>
+      <Sequence from={2190} durationInFrames={540}>
         <Audio src={staticFile("audio/music.mp3")} startFrom={s(72.5)} volume={vol([0, 6, 420, 540], [0.4, 0.9, 0.9, 0])} />
       </Sequence>
       <Sequence from={0} durationInFrames={455}><Audio src={staticFile("audio/sfx_2111.mp3")} loop volume={vol([0, 45, 380, 455], [0, 0.35, 0.5, 0.2])} /></Sequence>
       <Sequence from={442}><Audio src={staticFile("audio/sfx_2918.mp3")} volume={0.55} /></Sequence>
       <Sequence from={450} durationInFrames={300}><Audio src={staticFile("audio/sfx_462.mp3")} volume={vol([0, 200, 300], [0.75, 0.5, 0])} /></Sequence>
       <Sequence from={470} durationInFrames={190}><Audio src={staticFile("audio/sfx_3022.mp3")} volume={vol([0, 150, 190], [0.35, 0.3, 0])} /></Sequence>
-      {[655, 1015, 1525, 1705].map((f) => <Sequence key={f} from={f}><Audio src={staticFile("audio/sfx_1492.mp3")} volume={0.35} /></Sequence>)}
-      <Sequence from={1420} durationInFrames={450}><Audio src={staticFile("audio/sfx_494.mp3")} volume={vol([0, 30, 400, 450], [0, 0.95, 0.95, 0])} /></Sequence>
-      <Sequence from={1852}><Audio src={staticFile("audio/sfx_2918.mp3")} volume={0.5} /></Sequence>
-      <Sequence from={1860} durationInFrames={300}><Audio src={staticFile("audio/sfx_363.mp3")} volume={vol([0, 240, 300], [0.4, 0.35, 0])} /></Sequence>
-      <Sequence from={2140}><Audio src={staticFile("audio/sfx_614.mp3")} volume={0.6} /></Sequence>
+      {[655, 1015, 1510, 1720, 1900, 2095].map((f) => <Sequence key={f} from={f}><Audio src={staticFile("audio/sfx_1492.mp3")} volume={0.35} /></Sequence>)}
+      <Sequence from={2182}><Audio src={staticFile("audio/sfx_2918.mp3")} volume={0.5} /></Sequence>
+      <Sequence from={2190} durationInFrames={300}><Audio src={staticFile("audio/sfx_363.mp3")} volume={vol([0, 240, 300], [0.4, 0.35, 0])} /></Sequence>
+      <Sequence from={2470}><Audio src={staticFile("audio/sfx_614.mp3")} volume={0.6} /></Sequence>
     </AbsoluteFill>
   );
 };

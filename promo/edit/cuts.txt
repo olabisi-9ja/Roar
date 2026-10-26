@@ -16,3 +16,5 @@ homefan mk/33581.mp4 9 6
 family mk/21793.mp4 3 6
 crowdwide mk/9585.mp4 12 6
 camop px/213801.mp4 0 4
+steward mk/49280.mp4 4 4
+bluelight px/7315.mp4 0.8 4

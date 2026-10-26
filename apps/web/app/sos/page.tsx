@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/Icon";
-import { useCurrentMatch } from "@/lib/live";
+import { Icon, type IconName } from "@/components/Icon";
+import { useApi, useCurrentMatch } from "@/lib/live";
 import { queueIncident, sendIncident, type IncidentPayload } from "@/lib/incidents";
 
 const HOLD_MS = 2000;
@@ -21,11 +21,15 @@ export default function Sos() {
   const [sending, setSending] = useState(false);
   const [failed, setFailed] = useState("");
   const [ref, setRef] = useState("");
+  const [incidentId, setIncidentId] = useState<string | null>(null);
   const [queued, setQueued] = useState(false);
   const [queueNote, setQueueNote] = useState("No network right now.");
   const { match, list } = useCurrentMatch();
   const start = useRef(0);
   const payloadRef = useRef<IncidentPayload | null>(null);
+  // Once security has the report, follow it so the fan sees when a steward is on the way.
+  const report = useApi<{ status: string }>(stage === "sent" && !queued && incidentId ? `/incidents/${incidentId}/status` : null, true, 3000);
+  const live = report.data?.status ?? "OPEN";
 
   async function send() {
     setSending(true);
@@ -55,6 +59,7 @@ export default function Sos() {
       const result = await sendIncident(payload);
       if (result.ok) {
         setRef(result.id.slice(-6).toUpperCase());
+        setIncidentId(result.id);
         setQueued(false);
         setStage("sent");
         return;
@@ -83,6 +88,7 @@ export default function Sos() {
     setSending(false);
     if (result.ok) {
       setRef(result.id.slice(-6).toUpperCase());
+      setIncidentId(result.id);
       setQueued(false);
       return;
     }
@@ -150,16 +156,27 @@ export default function Sos() {
       <main className="scr no-nav enter" role="status">
         <div className={`card ${queued ? "y" : "g"}`} style={{ padding: 24 }}>
           <Icon name={queued ? "timer" : "shield"} size="l" />
-          <div className="d2" style={{ marginTop: 8 }}>{queued ? "Saved on this phone" : "Report received"}</div>
+          <div className="d2" style={{ marginTop: 8 }}>{queued ? "Saved on this phone" : live === "ASSIGNED" ? "Help is on the way" : live === "RESOLVED" ? "Marked resolved" : "Report received"}</div>
           <p style={{ marginTop: 6, fontWeight: 600 }}>
             {queued
               ? `${queueNote} We have not sent this report yet. It will retry automatically when the queue is reachable — if this is life-threatening, call 999 now.`
-              : `Your ${type.toLowerCase()} report is in the stadium security queue. We have not confirmed that a steward has seen it yet.`}
+              : live === "ASSIGNED"
+                ? `A steward has been sent to section ${section.trim()}${row.trim() ? `, row ${row.trim()}` : ""}. Stay where you are if it's safe.`
+                : live === "RESOLVED"
+                  ? "Security marked your report resolved. If you still need help, call 999 or send a new report."
+                  : live === "ACKNOWLEDGED"
+                    ? "The stadium control room has seen your report and is sending help."
+                    : `Your ${type.toLowerCase()} report is in the stadium security queue. We have not confirmed that a steward has seen it yet.`}
           </p>
         </div>
         <div>
-          <div className="li"><span className="av g" style={{ width: 34, height: 34 }}><Icon name={queued ? "timer" : "check"} size="s" /></span><span className="grow h3" style={{ fontSize: 18 }}>{queued ? "Waiting for network" : "Submitted to the security queue"}</span></div>
-          <div className="li" style={{ opacity: 0.6 }}><span className="av t" style={{ width: 34, height: 34 }}><Icon name="timer" size="s" /></span><span className="grow h3" style={{ fontSize: 18 }}>Security acknowledgement</span><span className="tag">Not yet</span></div>
+          <Step done label={queued ? "Waiting for network" : "Submitted to the security queue"} icon={queued ? "timer" : "check"} />
+          {!queued && (
+            <>
+              <Step done={["ACKNOWLEDGED", "ASSIGNED", "RESOLVED"].includes(live)} label="Seen by the control room" />
+              <Step done={["ASSIGNED", "RESOLVED"].includes(live)} label="Steward on the way" />
+            </>
+          )}
         </div>
         {queued && (
           <button type="button" className="pill full big" onClick={retry} disabled={sending}>{sending ? "Trying…" : "Try sending now"}</button>
@@ -194,5 +211,15 @@ export default function Sos() {
       </button>
       <p className="small" style={{ marginTop: 44 }}>Release to cancel. In a life-threatening emergency, call 999.</p>
     </main>
+  );
+}
+
+function Step({ done, label, icon }: { done: boolean; label: string; icon?: IconName }) {
+  return (
+    <div className="li" style={{ opacity: done ? 1 : 0.6 }}>
+      <span className={`av ${done ? "g" : "t"}`} style={{ width: 34, height: 34 }}><Icon name={icon ?? (done ? "check" : "timer")} size="s" /></span>
+      <span className="grow h3" style={{ fontSize: 18 }}>{label}</span>
+      {!done && <span className="tag">Not yet</span>}
+    </div>
   );
 }

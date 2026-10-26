@@ -217,6 +217,18 @@ app.post<{
   },
 );
 
+// The reporter can follow their own report's progress. Anyone else gets the same 404, so ids can't be probed.
+app.get<{ Params: { id: string } }>("/incidents/:id/status", async (request, reply) => {
+  const actor = await actorFromRequest(request);
+  const incident = await prisma.incident.findUnique({
+    where: { id: request.params.id },
+    select: { id: true, status: true, severity: true, updatedAt: true, reportedById: true },
+  });
+  if (!incident || !actor || incident.reportedById !== actor.id) return reply.code(404).send({ error: "Incident not found." });
+  reply.header("Cache-Control", "no-store");
+  return { id: incident.id, status: incident.status, severity: incident.severity, updatedAt: incident.updatedAt };
+});
+
 // Reading incidents (seat locations, reports) is security-staff only: see /admin/incidents below.
 
 // ---- Media upload ----
