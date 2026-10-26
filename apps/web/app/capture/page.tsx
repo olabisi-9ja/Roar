@@ -234,7 +234,9 @@ export default function Capture() {
               : "AI couldn't confidently match this clip to a Moment. It's saved for moderator review.";
     return (
       <main className="scr no-nav enter">
-        <div className="vid" style={{ height: 220 }} />
+        {clipUrl
+          ? <video src={clipUrl} autoPlay muted loop playsInline style={{ width: "100%", height: 220, objectFit: "cover", borderRadius: 28, background: "var(--ink)" }} />
+          : <div className="vid" style={{ height: 220 }} />}
         <h1 className="d2" style={{ margin: 0 }}>{terminal ? "Your clip is saved" : "AI is reading your moment"}</h1>
         <div className="prog"><i style={{ width: `${terminal ? 100 : ((step + 1) / STEPS.length) * 100}%` }} /></div>
         <div className="col" style={{ gap: 10 }} aria-live="polite">

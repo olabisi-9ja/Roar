@@ -1,26 +1,48 @@
 @import "tailwindcss";
 
+/* Roar control room: the fan app's logo palette on a dark console. See apps/web/app/globals.css. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #12021A;
+  --panel: #1F0729;
+  --panel-2: #2A0C36;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #FFFFFF;
+  --muted: rgba(255, 255, 255, 0.62);
+  --ink: #3A0648;
+  --orange: #F15326;
+  --yellow: #FEB703;
+  --green: #82BA03;
+  --blue: #00A6ED;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-display: var(--font-anton), Impact, sans-serif;
+  --font-cond: var(--font-barlow-cond), "Arial Narrow", sans-serif;
+  --font-sans: var(--font-barlow), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-barlow), system-ui, sans-serif;
 }
+
+.display { font-family: var(--font-anton), Impact, sans-serif; font-weight: 400; letter-spacing: 0.01em; line-height: 1; text-transform: uppercase; }
+.label { font-family: var(--font-barlow-cond), "Arial Narrow", sans-serif; font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; }
+.field { background: var(--panel-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; color: var(--text); }
+.field::placeholder { color: var(--muted); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 9px 18px; font-family: var(--font-barlow-cond), "Arial Narrow", sans-serif; font-weight: 800; font-size: 15px; letter-spacing: 0.04em; text-transform: uppercase; transition: transform 0.15s, filter 0.15s; }
+.btn:hover { filter: brightness(1.08); }
+.btn:active { transform: scale(0.97); }
+.btn-y { background: var(--yellow); color: var(--ink); }
+.btn-g { background: var(--green); color: var(--ink); }
+.btn-o { background: var(--orange); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text); box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.28); }
+.tag { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-family: var(--font-barlow-cond), "Arial Narrow", sans-serif; font-weight: 800; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.live-dot { background: var(--green); box-shadow: 0 0 0 0 rgba(130, 186, 3, 0.6); animation: pulse 1.6s infinite; }
+.crit-dot { background: var(--orange); box-shadow: 0 0 0 0 rgba(241, 83, 38, 0.6); animation: pulse-o 1.2s infinite; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 8px rgba(130, 186, 3, 0); } 100% { box-shadow: 0 0 0 0 rgba(130, 186, 3, 0); } }
+@keyframes pulse-o { 70% { box-shadow: 0 0 0 10px rgba(241, 83, 38, 0); } 100% { box-shadow: 0 0 0 0 rgba(241, 83, 38, 0); } }
+@media (prefers-reduced-motion: reduce) { .live-dot, .crit-dot { animation: none; } }
